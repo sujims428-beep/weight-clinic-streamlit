@@ -472,7 +472,7 @@ def patient_detail(pid=None):
         pulse=sorted(rel.get("pulses",[]),key=lambda x:str(x.get("pulse_date") or ""),reverse=True)[0] if rel.get("pulses") else {}
         labs=sorted(rel.get("labs",[]),key=lambda x:str(x.get("lab_date") or ""),reverse=True)[:4]
         lab_text=[f"{x.get('item_name','')}：{x.get('result_value') or x.get('result_text') or '暂无'} {x.get('unit') or ''}（{x.get('abnormal_flag') or '未判断'}）" for x in labs]
-        overview_cards(current_medications(rel.get("meds",[]))[-4:], f"舌质 {tongue.get('tongue_body_color','未记录')}，舌苔 {tongue.get('tongue_coating','未记录')}，舌形 {tongue.get('tongue_shape','未记录')}", pulse.get('overall_pulse','未记录'), lab_text)
+        overview_cards(current_med_names(rel.get("meds",[]))[-4:], f"舌质 {tongue.get('tongue_body_color','未记录')}，舌苔 {tongue.get('tongue_coating','未记录')}，舌形 {tongue.get('tongue_shape','未记录')}", pulse.get('overall_pulse','未记录'), lab_text)
         render_medication_quick_panel(p, sorted(rel.get("meds", []), key=lambda x: sort_key_date_id(x, "medication_date", "medication_id"), reverse=True), prefix=f"overview_med_{p['patient_id']}")
         section("最近复诊摘要")
         st.markdown(f"<div class='section-card'><p><b>本次评估：</b>{lv.get('clinical_assessment') or '暂无评估'}</p><p><b>本次建议：</b>{lv.get('clinical_advice') or '暂无建议'}</p></div>", unsafe_allow_html=True)
