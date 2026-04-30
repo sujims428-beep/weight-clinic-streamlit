@@ -140,6 +140,141 @@ def current_med_names(meds):
     return [f"{m.get('medicine_name','')} {m.get('dose','')} {m.get('frequency','')}" for m in current_medications(meds)]
 
 
+def render_medication_quick_panel(patient, meds_all, prefix="medquick"):
+    """当前用药快捷交互：新增、调整、停用、删除误录。"""
+    current_meds = current_medications(meds_all)
+    section("当前用药快捷处理")
+    c_add, c_hint = st.columns([1, 3])
+    with c_add:
+        if st.button("＋ 新增用药/调理", key=f"{prefix}_show_add", use_container_width=True):
+            st.session_state[f"{prefix}_adding"] = not st.session_state.get(f"{prefix}_adding", False)
+    with c_hint:
+        st.caption("可在这里直接处理当前用药：新增、调整剂量/频次、停用，或删除误录记录。停用会写入时间轴，删除误录会直接删除该条记录。")
+
+    if st.session_state.get(f"{prefix}_adding", False):
+        with st.form(f"{prefix}_add_form"):
+            a,b,c,d=st.columns(4)
+            md=a.date_input("日期",date.today(),key=f"{prefix}_add_date")
+            name=b.text_input("药物/方案",key=f"{prefix}_add_name")
+            dose=c.text_input("剂量",key=f"{prefix}_add_dose")
+            freq=d.text_input("频次",key=f"{prefix}_add_freq")
+            reason=st.text_input("原因",value="新增用药/调理方案",key=f"{prefix}_add_reason")
+            notes=st.text_area("备注",key=f"{prefix}_add_notes")
+            ok_add=st.form_submit_button("保存新增用药/调理",use_container_width=True)
+        if ok_add and name.strip():
+            insert("medication_records",{
+                "patient_id":patient["patient_id"],
+                "medication_date":str(md),
+                "medicine_name":name.strip(),
+                "dose":dose,
+                "frequency":freq,
+                "current_status":"使用中",
+                "adjustment_type":"新增",
+                "adjustment_reason":reason,
+                "notes":notes
+            })
+            st.session_state[f"{prefix}_adding"]=False
+            st.success("新增用药/调理方案已保存。")
+            st.rerun()
+
+    if not current_meds:
+        st.info("暂无当前用药。")
+        return
+
+    for m in current_meds:
+        med_id = m.get("medication_id")
+        st.markdown(
+            f"""
+            <div class="section-card">
+              <b>{m.get('medicine_name','未命名')}</b><br>
+              剂量：{m.get('dose') or '未记录'} ｜ 频次：{m.get('frequency') or '未记录'} ｜ 最近调整：{m.get('medication_date') or '未记录'}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        c1,c2,c3,c4 = st.columns(4)
+        if c1.button("调整剂量/频次", key=f"{prefix}_adjust_{med_id}", use_container_width=True):
+            st.session_state[f"{prefix}_editing_med"] = med_id
+        if c2.button("停用", key=f"{prefix}_stop_{med_id}", use_container_width=True):
+            insert("medication_records",{
+                "patient_id":patient["patient_id"],
+                "medication_date":str(date.today()),
+                "medicine_name":m.get("medicine_name"),
+                "dose":m.get("dose"),
+                "frequency":m.get("frequency"),
+                "current_status":"已停用",
+                "adjustment_type":"停用",
+                "adjustment_reason":"医生手动停用",
+                "notes":"由当前用药快捷处理生成"
+            })
+            st.success("已记录停用，并同步到用药时间轴。")
+            st.rerun()
+        if c3.button("暂停", key=f"{prefix}_pause_{med_id}", use_container_width=True):
+            insert("medication_records",{
+                "patient_id":patient["patient_id"],
+                "medication_date":str(date.today()),
+                "medicine_name":m.get("medicine_name"),
+                "dose":m.get("dose"),
+                "frequency":m.get("frequency"),
+                "current_status":"暂停",
+                "adjustment_type":"暂停",
+                "adjustment_reason":"医生手动暂停",
+                "notes":"由当前用药快捷处理生成"
+            })
+            st.success("已记录暂停，并同步到用药时间轴。")
+            st.rerun()
+        if c4.button("删除误录", key=f"{prefix}_delete_{med_id}", use_container_width=True):
+            delete("medication_records","medication_id",med_id)
+            st.success("已删除该条误录用药记录。")
+            st.rerun()
+
+        if st.session_state.get(f"{prefix}_editing_med") == med_id:
+            with st.form(f"{prefix}_edit_form_{med_id}"):
+                a,b,c,d=st.columns(4)
+                adj_date=a.date_input("调整日期", value=date.today(), key=f"{prefix}_edit_date_{med_id}")
+                adj_type=b.selectbox("调整类型", ["维持","加量","减量","调整方案"], key=f"{prefix}_edit_type_{med_id}")
+                new_dose=c.text_input("调整后剂量", value=m.get("dose") or "", key=f"{prefix}_edit_dose_{med_id}")
+                new_freq=d.text_input("调整后频次", value=m.get("frequency") or "", key=f"{prefix}_edit_freq_{med_id}")
+                reason=st.text_input("调整原因", value="", key=f"{prefix}_edit_reason_{med_id}")
+                notes=st.text_area("备注", value="", key=f"{prefix}_edit_notes_{med_id}")
+                save_edit=st.form_submit_button("保存本次调整", use_container_width=True)
+            if save_edit:
+                insert("medication_records",{
+                    "patient_id":patient["patient_id"],
+                    "medication_date":str(adj_date),
+                    "medicine_name":m.get("medicine_name"),
+                    "dose":new_dose,
+                    "frequency":new_freq,
+                    "current_status":"使用中",
+                    "adjustment_type":adj_type,
+                    "adjustment_reason":reason,
+                    "notes":notes
+                })
+                st.session_state[f"{prefix}_editing_med"] = None
+                st.success("用药调整已保存，并同步到当前用药与时间轴。")
+                st.rerun()
+
+def add_ideal_line(fig, ideal_value, label="参考目标线"):
+    """给趋势图添加红色虚线参考目标线。"""
+    try:
+        if ideal_value is None:
+            return fig
+        val = float(ideal_value)
+        fig.add_hline(
+            y=val,
+            line_dash="dash",
+            line_color="#ef4444",
+            line_width=2,
+            annotation_text=label,
+            annotation_position="top left",
+            annotation_font_color="#ef4444"
+        )
+    except Exception:
+        pass
+    return fig
+
+
+
 
 def stop_if_unconfigured():
     if not ok():
@@ -337,7 +472,8 @@ def patient_detail(pid=None):
         pulse=sorted(rel.get("pulses",[]),key=lambda x:str(x.get("pulse_date") or ""),reverse=True)[0] if rel.get("pulses") else {}
         labs=sorted(rel.get("labs",[]),key=lambda x:str(x.get("lab_date") or ""),reverse=True)[:4]
         lab_text=[f"{x.get('item_name','')}：{x.get('result_value') or x.get('result_text') or '暂无'} {x.get('unit') or ''}（{x.get('abnormal_flag') or '未判断'}）" for x in labs]
-        overview_cards(meds[-4:], f"舌质 {tongue.get('tongue_body_color','未记录')}，舌苔 {tongue.get('tongue_coating','未记录')}，舌形 {tongue.get('tongue_shape','未记录')}", pulse.get('overall_pulse','未记录'), lab_text)
+        overview_cards(current_medications(rel.get("meds",[]))[-4:], f"舌质 {tongue.get('tongue_body_color','未记录')}，舌苔 {tongue.get('tongue_coating','未记录')}，舌形 {tongue.get('tongue_shape','未记录')}", pulse.get('overall_pulse','未记录'), lab_text)
+        render_medication_quick_panel(p, sorted(rel.get("meds", []), key=lambda x: sort_key_date_id(x, "medication_date", "medication_id"), reverse=True), prefix=f"overview_med_{p['patient_id']}")
         section("最近复诊摘要")
         st.markdown(f"<div class='section-card'><p><b>本次评估：</b>{lv.get('clinical_assessment') or '暂无评估'}</p><p><b>本次建议：</b>{lv.get('clinical_advice') or '暂无建议'}</p></div>", unsafe_allow_html=True)
     with tabs[1]:
@@ -349,49 +485,8 @@ def patient_detail(pid=None):
                 if st.button("删除该复诊记录", key=f"delv{v['visit_id']}"): delete_visit(v["visit_id"]); st.rerun()
     with tabs[2]:
         section("当前用药")
-        st.caption("当前用药按“同一药物/方案的最新记录”判断；如果最新记录为“停用”或“暂停”，则不再显示为当前用药。")
         meds_all = sorted(rel.get("meds", []), key=lambda x: sort_key_date_id(x, "medication_date", "medication_id"), reverse=True)
-        current_meds = current_medications(meds_all)
-
-        if not current_meds:
-            st.info("暂无当前用药。可在下方新增用药或调理方案。")
-        else:
-            for m in current_meds:
-                title = f"{m.get('medicine_name','未命名')}｜{m.get('dose') or '未填剂量'}｜{m.get('frequency') or '未填频次'}"
-                with st.expander(title, expanded=False):
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric("药物/方案", m.get("medicine_name") or "未记录")
-                    c2.metric("当前剂量", m.get("dose") or "未记录")
-                    c3.metric("当前频次", m.get("frequency") or "未记录")
-                    c4.metric("最近调整", m.get("medication_date") or "未记录")
-                    with st.form(f"adjust_current_med_{m.get('medication_id')}"):
-                        a,b,c,d = st.columns(4)
-                        adj_date = a.date_input("调整日期", value=date.today(), key=f"adj_date_{m.get('medication_id')}")
-                        adj_type = b.selectbox("调整类型", ["维持", "加量", "减量", "调整方案", "停用", "暂停"], key=f"adj_type_{m.get('medication_id')}")
-                        new_dose = c.text_input("调整后剂量", value=m.get("dose") or "", key=f"adj_dose_{m.get('medication_id')}")
-                        new_freq = d.text_input("调整后频次", value=m.get("frequency") or "", key=f"adj_freq_{m.get('medication_id')}")
-                        reason = st.text_input("调整原因", value="", key=f"adj_reason_{m.get('medication_id')}")
-                        notes = st.text_area("备注", value="", key=f"adj_notes_{m.get('medication_id')}")
-                        ok_adj = st.form_submit_button("保存本次用药调整", use_container_width=True)
-                    if ok_adj:
-                        new_status = "使用中"
-                        if adj_type == "停用":
-                            new_status = "已停用"
-                        elif adj_type == "暂停":
-                            new_status = "暂停"
-                        insert("medication_records", {
-                            "patient_id": p["patient_id"],
-                            "medication_date": str(adj_date),
-                            "medicine_name": m.get("medicine_name"),
-                            "dose": new_dose,
-                            "frequency": new_freq,
-                            "current_status": new_status,
-                            "adjustment_type": adj_type,
-                            "adjustment_reason": reason,
-                            "notes": notes
-                        })
-                        st.success("用药调整已记录，并已同步到当前用药与时间轴。")
-                        st.rerun()
+        render_medication_quick_panel(p, meds_all, prefix=f"tab_med_{p['patient_id']}")
 
         section("新增用药 / 调理方案")
         with st.form("med"):
@@ -452,24 +547,31 @@ def patient_detail(pid=None):
         edit=st.data_editor(df.assign(结果数值=None,文字结果="",医院=""),use_container_width=True,num_rows="dynamic")
         if st.button("保存批量检查"):
             n=0
-            for _,r in edit.iterrows():
-                if pd.notna(r.get("结果数值")) or str(r.get("文字结果") or "").strip():
-                    insert("lab_results",{
-                        "patient_id":p["patient_id"],
-                        "lab_date":str(check_date),
-                        "lab_category":r.get("类别"),
-                        "item_name":r.get("项目"),
-                        "result_value":None if pd.isna(r.get("结果数值")) else float(r.get("结果数值")),
-                        "result_text":r.get("文字结果"),
-                        "unit":r.get("单位"),
-                        "reference_low":None if pd.isna(r.get("参考下限")) else float(r.get("参考下限")),
-                        "reference_high":None if pd.isna(r.get("参考上限")) else float(r.get("参考上限")),
-                        "abnormal_flag":abnormal(r.get("结果数值"),r.get("文字结果"),r.get("参考下限"),r.get("参考上限")),
-                        "hospital_name":r.get("医院")
-                    })
-                    n+=1
-            st.success(f"保存 {n} 条")
-            st.rerun()
+            try:
+                for _,r in edit.iterrows():
+                    result_value = optional_float_text(r.get("结果数值"))
+                    result_text = str(r.get("文字结果") or "").strip()
+                    reference_low = optional_float_text(r.get("参考下限"))
+                    reference_high = optional_float_text(r.get("参考上限"))
+                    if result_value is not None or result_text:
+                        insert("lab_results",{
+                            "patient_id":p["patient_id"],
+                            "lab_date":str(check_date),
+                            "lab_category":r.get("类别"),
+                            "item_name":r.get("项目"),
+                            "result_value":result_value,
+                            "result_text":result_text,
+                            "unit":r.get("单位"),
+                            "reference_low":reference_low,
+                            "reference_high":reference_high,
+                            "abnormal_flag":abnormal(result_value,result_text,reference_low,reference_high),
+                            "hospital_name":r.get("医院")
+                        })
+                        n+=1
+                st.success(f"保存 {n} 条")
+                st.rerun()
+            except ValueError as e:
+                st.error(str(e))
 
         section("历史辅助检查")
         labs_all = sorted(rel.get("labs", []), key=lambda x: sort_key_date_id(x, "lab_date", "lab_id"), reverse=True)
@@ -654,25 +756,53 @@ def page_trends():
     if not p: return
     rel=related(p["patient_id"]); cards(p,rel)
     visits=pd.DataFrame(rel.get("visits",[])); est=pd.DataFrame(rel.get("estimates",[])); labs=pd.DataFrame(rel.get("labs",[]))
-    def make_line(df,x,y,title,ytitle):
+    def make_line(df,x,y,title,ytitle,ideal_value=None,ideal_label="参考目标线"):
         fig=px.line(df,x=x,y=y,markers=True,title=title,labels={x:"日期",y:ytitle})
         fig.update_traces(line=dict(width=3,color="#14a39a"),marker=dict(size=8,color="#14a39a"))
+        add_ideal_line(fig, ideal_value, ideal_label)
         fig.update_layout(title=dict(font=dict(size=22,color="#10233d")),plot_bgcolor="white",paper_bgcolor="white",font=dict(family="Microsoft YaHei",color="#42526b"),height=390,margin=dict(l=30,r=20,t=60,b=30),hovermode="x unified",showlegend=False)
         fig.update_xaxes(title_text="日期",gridcolor="#eef2f7",tickformat="%Y-%m-%d")
         fig.update_yaxes(title_text=ytitle,gridcolor="#eef2f7")
         chart_open(); st.plotly_chart(fig,use_container_width=True, config={"displayModeBar": False}); chart_close()
+
+    ideal_weight_value = p.get("target_weight_kg")
+    ideal_waist_value = 85 if p.get("sex")=="男" else 80
+    ideal_bmi_value = 23.9
+    ideal_body_fat_value = 20 if p.get("sex")=="男" else 28
+    ideal_fat_mass_value = None
+    try:
+        if ideal_weight_value and ideal_body_fat_value:
+            ideal_fat_mass_value = float(ideal_weight_value) * float(ideal_body_fat_value) / 100
+    except Exception:
+        ideal_fat_mass_value = None
+
     if not visits.empty:
         visits["visit_date"]=pd.to_datetime(visits["visit_date"])
-        for y,t,yt in [("weight_kg","体重变化","体重（千克）"),("waist_cm","腰围变化","腰围（厘米）"),("bmi","体重指数变化","体重指数")]:
-            if y in visits: make_line(visits,"visit_date",y,t,yt)
+        chart_cfg = [
+            ("weight_kg","体重变化","体重（千克）",ideal_weight_value,"目标体重"),
+            ("waist_cm","腰围变化","腰围（厘米）",ideal_waist_value,"腰围参考目标"),
+            ("bmi","体重指数变化","体重指数",ideal_bmi_value,"体重指数参考上限"),
+        ]
+        for y,t,yt,ideal,label in chart_cfg:
+            if y in visits: make_line(visits,"visit_date",y,t,yt,ideal,label)
     if not est.empty:
         est["estimate_date"]=pd.to_datetime(est["estimate_date"])
-        for y,t,yt in [("body_fat_percent_est","体脂率估算变化","体脂率（%）"),("fat_mass_kg_est","脂肪量估算变化","脂肪量（千克）")]:
-            if y in est: make_line(est,"estimate_date",y,t,yt)
+        chart_cfg_est = [
+            ("body_fat_percent_est","体脂率估算变化","体脂率（%）",ideal_body_fat_value,"体脂率参考目标"),
+            ("fat_mass_kg_est","脂肪量估算变化","脂肪量（千克）",ideal_fat_mass_value,"脂肪量参考目标"),
+        ]
+        for y,t,yt,ideal,label in chart_cfg_est:
+            if y in est: make_line(est,"estimate_date",y,t,yt,ideal,label)
     if not labs.empty:
         item=st.selectbox("检验项目",sorted(labs["item_name"].dropna().unique()))
         sub=labs[labs["item_name"]==item].copy(); sub["lab_date"]=pd.to_datetime(sub["lab_date"])
-        make_line(sub,"lab_date","result_value",f"{item}趋势","检查结果")
+        ref_high = None
+        try:
+            vals = sub["reference_high"].dropna().tolist()
+            ref_high = vals[-1] if vals else None
+        except Exception:
+            ref_high = None
+        make_line(sub,"lab_date","result_value",f"{item}趋势","检查结果",ref_high,"参考上限")
 
 def page_export():
     hero("导出与备份","导出云端数据备份和患者报告")
