@@ -8,7 +8,19 @@ from modules.auth import require_login, logout
 from modules.calc import LAB_TEMPLATES, abnormal, bmi, fmt, ideal_weight, loss, whr
 from modules.db import *
 from modules.report import a5_html
-from modules.ui import css, hero, boundary, tags_html, brand, section, patient_header
+from modules.ui import css, hero, boundary, tags_html
+try:
+    from modules.ui import brand, section, patient_header
+except ImportError:
+    def brand():
+        st.sidebar.markdown("### ⚖️ 逢安堂")
+    def section(title):
+        st.subheader(title)
+    def patient_header(patient):
+        st.markdown(
+            f"### {patient.get('name','')}\n"
+            f"{patient.get('patient_code','')}｜{patient.get('sex','')}｜{patient.get('age','')}岁"
+        )
 
 st.set_page_config(page_title="减重门诊管理系统（逢安堂）", page_icon="⚖️", layout="wide")
 css()
