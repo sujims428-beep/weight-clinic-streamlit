@@ -28,3 +28,45 @@ def a5_html(patient, rel, doctor="苏医生"):
 <div class='section' style='background:#fff8eb;border-color:#fed7aa'><div class='st'>本次建议</div><ol><li>{escape(str(lv.get('clinical_advice') or '继续当前方案，按期复诊。'))}</li><li>若出现明显不适，请及时联系门诊。</li></ol></div>
 <div class='foot'>说明：体成分相关指标为公式估算值，仅用于同一方法下趋势参考。本报告用于门诊健康管理参考，不作为自动诊断或自动开药依据。<br>接诊医生：{escape(doctor)}</div>
 </body></html>"""
+
+
+def doctor_a5_html(patient, rel, doctor="苏医生"):
+    """医生版报告：用于门诊留档，信息比患者版更完整。"""
+    visits = sorted(rel.get("visits", []), key=lambda x: str(x.get("visit_date") or ""), reverse=True)[:8]
+    meds = sorted(rel.get("meds", []), key=lambda x: str(x.get("medication_date") or ""), reverse=True)[:10]
+    labs = sorted(rel.get("labs", []), key=lambda x: str(x.get("lab_date") or ""), reverse=True)[:12]
+    tongues = sorted(rel.get("tongues", []), key=lambda x: str(x.get("image_date") or ""), reverse=True)[:4]
+    pulses = sorted(rel.get("pulses", []), key=lambda x: str(x.get("pulse_date") or ""), reverse=True)[:4]
+    lv = latest(visits, "visit_date") if visits else {}
+    weight = lv.get("weight_kg") or patient.get("initial_weight_kg")
+    b = bmi(weight, patient.get("height_cm"))
+    lp = loss(patient.get("initial_weight_kg"), weight)
+
+    def row_visit(v):
+        return f"<tr><td>{escape(str(v.get('visit_date') or ''))}</td><td>{fmt(v.get('weight_kg'))}</td><td>{fmt(v.get('waist_cm'))}</td><td>{escape(str(v.get('clinical_assessment') or ''))}</td><td>{escape(str(v.get('clinical_advice') or ''))}</td></tr>"
+
+    def row_med(m):
+        return f"<tr><td>{escape(str(m.get('medication_date') or ''))}</td><td>{escape(str(m.get('medicine_name') or ''))}</td><td>{escape(str(m.get('dose') or ''))}</td><td>{escape(str(m.get('frequency') or ''))}</td><td>{escape(str(m.get('current_status') or ''))}</td><td>{escape(str(m.get('adjustment_type') or ''))}</td></tr>"
+
+    def row_lab(x):
+        result = x.get("result_value") if x.get("result_value") is not None else x.get("result_text")
+        return f"<tr><td>{escape(str(x.get('lab_date') or ''))}</td><td>{escape(str(x.get('item_name') or ''))}</td><td>{escape(str(result or ''))} {escape(str(x.get('unit') or ''))}</td><td>{escape(str(x.get('reference_low') or ''))}-{escape(str(x.get('reference_high') or ''))}</td><td>{escape(str(x.get('abnormal_flag') or ''))}</td></tr>"
+
+    visit_rows = "".join(row_visit(v) for v in visits) or "<tr><td colspan='5'>暂无复诊记录</td></tr>"
+    med_rows = "".join(row_med(m) for m in meds) or "<tr><td colspan='6'>暂无用药记录</td></tr>"
+    lab_rows = "".join(row_lab(x) for x in labs) or "<tr><td colspan='5'>暂无辅助检查</td></tr>"
+    tongue_text = "<br>".join([f"{escape(str(t.get('image_date') or ''))}：舌质 {escape(str(t.get('tongue_body_color') or '未记录'))}，舌苔 {escape(str(t.get('tongue_coating') or '未记录'))}，舌形 {escape(str(t.get('tongue_shape') or '未记录'))}" for t in tongues]) or "暂无舌象记录"
+    pulse_text = "<br>".join([f"{escape(str(p.get('pulse_date') or ''))}：{escape(str(p.get('overall_pulse') or '未记录'))}" for p in pulses]) or "暂无脉象记录"
+
+    return f"""<!doctype html><html><head><meta charset='utf-8'><title>医生版报告</title>
+<style>@page{{size:A5 portrait;margin:7mm}}body{{font-family:'Microsoft YaHei',Arial,sans-serif;color:#1f2937}}.head{{display:flex;justify-content:space-between;border-bottom:2px solid #dbeafe;padding-bottom:6px;margin-bottom:8px}}.title{{font-size:18px;font-weight:900}}.section{{border:1px solid #e5edf6;border-radius:10px;padding:8px;margin:8px 0;break-inside:avoid}}.st{{font-weight:900;margin-bottom:6px}}.grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}}.info{{background:#f8fbff;border:1px solid #eef4fb;border-radius:8px;padding:6px}}.info b{{display:block;font-size:9px;color:#64748b}}.info span{{font-size:11px;font-weight:800}}.kpis{{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}}.kpi{{border:1px solid #e6edf5;border-radius:10px;padding:7px}}.kpi b{{font-size:10px;color:#64748b;display:block}}.kpi span{{font-size:16px;font-weight:900;color:#0f766e}}table{{width:100%;border-collapse:collapse;font-size:9px}}td,th{{border-bottom:1px solid #edf2f7;padding:4px;text-align:center;vertical-align:top}}.foot{{font-size:9px;color:#64748b;line-height:1.45;border-top:1px solid #e5edf6;padding-top:8px}}</style></head><body>
+<div class='head'><div><div class='title'>减重门诊随访报告（医生版）</div><div style='font-size:10px;color:#64748b'>用于门诊留档与复诊回顾</div></div><div style='font-size:10px;color:#1d4ed8'>报告日期：{date.today()}</div></div>
+<div class='section'><div class='st'>患者基本信息</div><div class='grid'>
+<div class='info'><b>编号</b><span>{escape(str(patient.get('patient_code') or ''))}</span></div><div class='info'><b>姓名</b><span>{escape(str(patient.get('name') or ''))}</span></div><div class='info'><b>性别</b><span>{escape(str(patient.get('sex') or ''))}</span></div><div class='info'><b>年龄</b><span>{escape(str(patient.get('age') or ''))}岁</span></div><div class='info'><b>身高</b><span>{escape(str(patient.get('height_cm') or ''))} cm</span></div><div class='info'><b>初诊日期</b><span>{escape(str(patient.get('first_visit_date') or ''))}</span></div><div class='info'><b>主要问题</b><span>{escape(str(patient.get('main_diagnosis') or ''))}</span></div><div class='info'><b>目标体重</b><span>{fmt(patient.get('target_weight_kg'))} kg</span></div></div></div>
+<div class='section'><div class='st'>核心摘要</div><div class='kpis'><div class='kpi'><b>当前体重</b><span>{fmt(weight)} kg</span></div><div class='kpi'><b>体重指数</b><span>{fmt(b)}</span></div><div class='kpi'><b>累计减重</b><span>{fmt(lp)}%</span></div></div></div>
+<div class='section'><div class='st'>复诊记录</div><table><thead><tr><th>日期</th><th>体重</th><th>腰围</th><th>评估</th><th>建议</th></tr></thead><tbody>{visit_rows}</tbody></table></div>
+<div class='section'><div class='st'>用药调整</div><table><thead><tr><th>日期</th><th>药物/方案</th><th>剂量</th><th>频次</th><th>状态</th><th>调整</th></tr></thead><tbody>{med_rows}</tbody></table></div>
+<div class='section'><div class='st'>辅助检查</div><table><thead><tr><th>日期</th><th>项目</th><th>结果</th><th>参考范围</th><th>提示</th></tr></thead><tbody>{lab_rows}</tbody></table></div>
+<div class='section'><div class='st'>舌脉记录</div><p style='font-size:10px;line-height:1.6'><b>舌象：</b><br>{tongue_text}</p><p style='font-size:10px;line-height:1.6'><b>脉象：</b><br>{pulse_text}</p></div>
+<div class='foot'>说明：本报告用于医生复诊回顾与门诊留档，不作为自动诊断或自动开药依据。体成分指标为公式估算值，仅用于同一方法下趋势参考。<br>接诊医生：{escape(doctor)}</div>
+</body></html>"""
