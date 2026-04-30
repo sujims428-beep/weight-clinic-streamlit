@@ -444,54 +444,64 @@ def cards(p, rel=None):
     st.markdown(tags_html(safe_tags(p)), unsafe_allow_html=True)
 
 def new_patient_panel():
-    with st.expander("＋ 新增患者 / 初诊建档", expanded=False):
+    # 控制“新增患者 / 初诊建档”面板是否默认展开
+    expanded = st.session_state.get("open_new_patient_panel", False)
+
+    # 新增患者面板：默认折叠，点击顶部“新增患者”按钮后展开
+    with st.expander("＋ 新增患者 / 初诊建档", expanded=expanded):
+        # 自动生成患者编号
         default_code = next_patient_code()
+
+        # 新增患者表单
         with st.form("new_patient"):
-            a,b,c,d=st.columns(4)
-            code=a.text_input("患者编号", default_code)
-            name=b.text_input("姓名")
-            sex=c.selectbox("性别",["男","女"])
-            age=d.number_input("年龄",0,120,40)
+            a, b, c, d = st.columns(4)
+            code = a.text_input("患者编号", default_code)
+            name = b.text_input("姓名")
+            sex = c.selectbox("性别", ["男", "女"])
+            age = d.number_input("年龄", 0, 120, 40)
 
-            e,f,g,h=st.columns(4)
-            phone=e.text_input("手机号")
-            height=f.number_input("身高（厘米）",80.0,230.0,170.0)
-            first=g.date_input("初诊日期",date.today())
-            weight=h.number_input("初诊体重（千克）",0.0,value=80.0)
+            e, f, g, h = st.columns(4)
+            phone = e.text_input("手机号")
+            height = f.number_input("身高（厘米）", 80.0, 230.0, 170.0)
+            first = g.date_input("初诊日期", date.today())
+            weight = h.number_input("初诊体重（千克）", 0.0, value=80.0)
 
-            lo,hi,mid=ideal_weight(height)
-            st.info(f"当前体重指数：{fmt(bmi(weight,height))}；目标体重参考：{fmt(lo)}–{fmt(hi)} 千克")
+            lo, hi, mid = ideal_weight(height)
+            st.info(f"当前体重指数：{fmt(bmi(weight, height))}；目标体重参考：{fmt(lo)}–{fmt(hi)} 千克")
 
-            target=st.number_input("目标体重（千克）",0.0,value=float(mid or 65))
-            diag=st.text_input("主要诊断/主要问题","肥胖/体重管理")
-            tags=st.multiselect("标签",TAGS,["减重门诊"], placeholder="请选择标签")
-            notes=st.text_area("备注")
+            target = st.number_input("目标体重（千克）", 0.0, value=float(mid or 65))
+            diag = st.text_input("主要诊断/主要问题", "肥胖/体重管理")
+            tags = st.multiselect("标签", TAGS, ["减重门诊"], placeholder="请选择标签")
+            notes = st.text_area("备注")
 
             section("初诊基线")
             st.caption("没有检测或没有记录的项目请留空，系统会按“无”处理，不再默认写入 0。")
-            x1,x2,x3,x4,x5=st.columns(5)
-            waist_text=x1.text_input("腰围（厘米）", value="", placeholder="无")
-            hip_text=x2.text_input("臀围（厘米）", value="", placeholder="无")
-            sbp_text=x3.text_input("收缩压", value="", placeholder="无")
-            dbp_text=x4.text_input("舒张压", value="", placeholder="无")
-            hr_text=x5.text_input("心率", value="", placeholder="无")
 
-            y1,y2,y3,y4=st.columns(4)
-            diet=y1.selectbox("饮食",DIET)
-            ex=y2.selectbox("运动",EX)
-            sleep=y3.selectbox("睡眠",SL)
-            stool=y4.selectbox("大便",ST)
+            x1, x2, x3, x4, x5 = st.columns(5)
+            waist_text = x1.text_input("腰围（厘米）", value="", placeholder="无")
+            hip_text = x2.text_input("臀围（厘米）", value="", placeholder="无")
+            sbp_text = x3.text_input("收缩压", value="", placeholder="无")
+            dbp_text = x4.text_input("舒张压", value="", placeholder="无")
+            hr_text = x5.text_input("心率", value="", placeholder="无")
 
-            discomfort=st.text_input("不适症状","未诉明显不适")
-            ass=st.text_area("初诊评估","初诊建档，建立减重管理基线。")
-            adv=st.text_area("初诊建议","进行饮食、运动及生活方式管理，按期复诊。")
-            nextd=st.date_input("下次复诊日期", date.today()+timedelta(days=7))
-            submitted=st.form_submit_button("保存患者并生成初诊基线", use_container_width=True)
+            y1, y2, y3, y4 = st.columns(4)
+            diet = y1.selectbox("饮食", DIET)
+            ex = y2.selectbox("运动", EX)
+            sleep = y3.selectbox("睡眠", SL)
+            stool = y4.selectbox("大便", ST)
+
+            discomfort = st.text_input("不适症状", "未诉明显不适")
+            ass = st.text_area("初诊评估", "初诊建档，建立减重管理基线。")
+            adv = st.text_area("初诊建议", "进行饮食、运动及生活方式管理，按期复诊。")
+            nextd = st.date_input("下次复诊日期", date.today() + timedelta(days=7))
+
+            submitted = st.form_submit_button("保存患者并生成初诊基线", use_container_width=True)
 
         if submitted:
             if not name:
                 st.error("姓名不能为空")
                 return
+
             try:
                 waist = optional_float_text(waist_text)
                 hip = optional_float_text(hip_text)
@@ -499,41 +509,45 @@ def new_patient_panel():
                 dbp = optional_int_text(dbp_text)
                 hr = optional_int_text(hr_text)
 
-                p=create_patient({
-                    "patient_code":code.strip(),
-                    "name":name.strip(),
-                    "sex":sex,
-                    "age":int(age),
-                    "phone":phone,
-                    "height_cm":height,
-                    "first_visit_date":str(first),
-                    "initial_weight_kg":weight,
-                    "target_weight_kg":target,
-                    "main_diagnosis":diag,
-                    "tags":tags,
-                    "notes":notes
+                p = create_patient({
+                    "patient_code": code.strip(),
+                    "name": name.strip(),
+                    "sex": sex,
+                    "age": int(age),
+                    "phone": phone,
+                    "height_cm": height,
+                    "first_visit_date": str(first),
+                    "initial_weight_kg": weight,
+                    "target_weight_kg": target,
+                    "main_diagnosis": diag,
+                    "tags": tags,
+                    "notes": notes
                 })
 
-                create_visit(p,{
-                    "visit_date":str(first),
-                    "weight_kg":weight,
-                    "waist_cm":waist,
-                    "hip_cm":hip,
-                    "systolic_bp":sbp,
-                    "diastolic_bp":dbp,
-                    "heart_rate":hr,
-                    "diet_adherence":diet,
-                    "exercise_status":ex,
-                    "sleep_status":sleep,
-                    "stool_status":stool,
-                    "discomfort_symptoms":discomfort,
-                    "clinical_assessment":ass,
-                    "clinical_advice":adv,
-                    "next_visit_date":str(nextd)
+                create_visit(p, {
+                    "visit_date": str(first),
+                    "weight_kg": weight,
+                    "waist_cm": waist,
+                    "hip_cm": hip,
+                    "systolic_bp": sbp,
+                    "diastolic_bp": dbp,
+                    "heart_rate": hr,
+                    "diet_adherence": diet,
+                    "exercise_status": ex,
+                    "sleep_status": sleep,
+                    "stool_status": stool,
+                    "discomfort_symptoms": discomfort,
+                    "clinical_assessment": ass,
+                    "clinical_advice": adv,
+                    "next_visit_date": str(nextd)
                 })
-                st.session_state["patient_id"]=p["patient_id"]
+
+                st.session_state["patient_id"] = p["patient_id"]
+                st.session_state["open_new_patient_panel"] = False
+                st.session_state["show_detail"] = True
                 st.success("患者保存成功")
                 st.rerun()
+
             except ValueError as e:
                 st.error(str(e))
             except Exception as e:
@@ -545,35 +559,267 @@ def new_patient_panel():
 
 
 def page_patients():
-    hero("患者管理","新增、搜索、筛选并进入患者详情")
-    boundary(); new_patient_panel()
-    ps=list_patients()
+    # 页面局部样式：只影响患者管理页，让页面更接近简洁后台界面
+    st.markdown(
+        """
+        <style>
+        .patient-page-top{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:16px;
+            padding:18px 22px;
+            margin:2px 0 18px 0;
+            background:linear-gradient(135deg,#ffffff 0%,#f8fbff 100%);
+            border:1px solid #e3edf5;
+            border-radius:22px;
+            box-shadow:0 12px 30px rgba(31,50,74,.06);
+        }
+        .patient-page-title{
+            margin:0;
+            color:#10233d;
+            font-size:30px;
+            line-height:1.15;
+            font-weight:950;
+            letter-spacing:.3px;
+        }
+        .patient-page-sub{
+            margin-top:6px;
+            color:#667085;
+            font-size:14px;
+            font-weight:700;
+        }
+        .patient-toolbar{
+            padding:14px 16px 6px 16px;
+            margin:4px 0 16px 0;
+            background:#ffffff;
+            border:1px solid #e3edf5;
+            border-radius:20px;
+            box-shadow:0 10px 24px rgba(31,50,74,.045);
+        }
+        .patient-table-wrap{
+            padding:16px 18px 6px 18px;
+            background:#ffffff;
+            border:1px solid #e3edf5;
+            border-radius:22px;
+            box-shadow:0 14px 34px rgba(31,50,74,.06);
+            margin-top:10px;
+        }
+        .patient-table-head{
+            color:#53657d;
+            font-size:13px;
+            font-weight:900;
+            padding:6px 0 8px 0;
+            border-bottom:1px solid #e9f0f6;
+        }
+        .patient-row{
+            padding:5px 0;
+            border-bottom:1px solid #edf2f7;
+            color:#22344d;
+            font-size:14px;
+        }
+        .patient-row-muted{
+            color:#667085;
+            font-size:13px;
+        }
+        .patient-link-note{
+            color:#667085;
+            font-size:12px;
+            margin-top:-4px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 读取患者列表
+    ps = list_patients()
+
+    # 顶部区域：小标题 + 右上角新增患者按钮
+    st.markdown(
+        """
+        <div class="patient-page-top">
+            <div>
+                <div class="patient-page-title">患者管理</div>
+                <div class="patient-page-sub">新增、搜索、筛选并快速进入患者详情或复诊</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    top_action_left, top_action_right = st.columns([6, 1.2])
+    with top_action_left:
+        st.write("")
+    with top_action_right:
+        if st.button("＋ 新增患者", key="top_add_patient_btn", use_container_width=True):
+            st.session_state["open_new_patient_panel"] = True
+            st.rerun()
+
+    # 新增患者面板
+    new_patient_panel()
+
+    # 空数据提示
     if not ps:
         st.info("暂无患者，请先新增患者。")
         return
-    diabetes=sum("糖尿病" in safe_tags(p) or "血糖异常" in safe_tags(p) for p in ps)
-    lipid=sum("高脂血症" in safe_tags(p) or "血脂异常" in safe_tags(p) for p in ps)
-    key_follow=sum("重点复诊" in safe_tags(p) for p in ps)
-    stat_grid([("患者总数",len(ps),"当前已建档患者"),("血糖相关",diabetes,"糖尿病或血糖异常"),("血脂相关",lipid,"高脂血症或血脂异常"),("重点复诊",key_follow,"需要重点随访")])
-    section("患者检索与筛选")
-    q=st.text_input("搜索患者", placeholder="姓名 / 手机号 / 患者编号"); tf=st.multiselect("标签筛选",TAGS, placeholder="请选择标签")
-    rows=[]
+
+    # 顶部统计卡片
+    diabetes = sum("糖尿病" in safe_tags(p) or "血糖异常" in safe_tags(p) for p in ps)
+    lipid = sum("高脂血症" in safe_tags(p) or "血脂异常" in safe_tags(p) for p in ps)
+    key_follow = sum("重点复诊" in safe_tags(p) for p in ps)
+
+    stat_grid([
+        ("患者总数", len(ps), "当前已建档患者"),
+        ("血糖相关", diabetes, "糖尿病或血糖异常"),
+        ("血脂相关", lipid, "高脂血症或血脂异常"),
+        ("重点复诊", key_follow, "需要重点随访")
+    ])
+
+    # 简洁搜索工具栏
+    st.markdown('<div class="patient-toolbar">', unsafe_allow_html=True)
+    filter_col1, filter_col2, filter_col3 = st.columns([1.8, 1.2, 0.55])
+
+    with filter_col1:
+        q = st.text_input(
+            "搜索患者",
+            placeholder="搜索姓名 / 手机 / 编号",
+            key="patient_search_input",
+            label_visibility="collapsed"
+        )
+
+    with filter_col2:
+        tf = st.multiselect(
+            "标签筛选",
+            TAGS,
+            placeholder="请选择标签",
+            key="patient_tag_filter",
+            label_visibility="collapsed"
+        )
+
+    with filter_col3:
+        if st.button("刷新", key="patient_refresh_btn", use_container_width=True):
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 整理筛选后的患者数据
+    rows = []
     for p in ps:
-        tags=safe_tags(p)
-        if q and q not in str(p.get("name","")) and q not in str(p.get("phone","")) and q not in str(p.get("patient_code","")): continue
-        if tf and not all(t in tags for t in tf): continue
-        rel=related(p["patient_id"]); visits=rel.get("visits",[])
-        lv=sorted(visits,key=lambda x:str(x.get("visit_date") or ""), reverse=True)[0] if visits else {}
-        rows.append({"patient_id":p["patient_id"],"编号":p.get("patient_code"),"姓名":p.get("name"),"性别":p.get("sex"),"年龄":p.get("age"),"手机号":p.get("phone"),"初诊日期":p.get("first_visit_date"),"最近复诊":lv.get("visit_date"),"最近体重":lv.get("weight_kg"),"最近体重指数":bmi(lv.get("weight_kg"),p.get("height_cm")) if lv else None,"主要诊断":p.get("main_diagnosis"),"标签":"、".join(tags)})
+        tags = safe_tags(p)
+
+        if q:
+            q_text = str(q).strip()
+            if (
+                q_text not in str(p.get("name", "")) and
+                q_text not in str(p.get("phone", "")) and
+                q_text not in str(p.get("patient_code", ""))
+            ):
+                continue
+
+        if tf and not all(t in tags for t in tf):
+            continue
+
+        rel = related(p["patient_id"])
+        visits = rel.get("visits", [])
+        lv = sorted(
+            visits,
+            key=lambda x: str(x.get("visit_date") or ""),
+            reverse=True
+        )[0] if visits else {}
+
+        rows.append({
+            "patient_id": p["patient_id"],
+            "编号": p.get("patient_code") or "",
+            "姓名": p.get("name") or "",
+            "性别": p.get("sex") or "",
+            "年龄": p.get("age") or "",
+            "手机号": p.get("phone") or "—",
+            "初诊日期": p.get("first_visit_date") or "",
+            "最近复诊": lv.get("visit_date") or "",
+            "最近体重": lv.get("weight_kg") or "",
+            "最近体重指数": bmi(lv.get("weight_kg"), p.get("height_cm")) if lv else None,
+            "主要诊断": p.get("main_diagnosis") or "",
+            "标签": "、".join(tags)
+        })
+
+    rows = sorted(
+        rows,
+        key=lambda x: str(x.get("最近复诊") or x.get("初诊日期") or ""),
+        reverse=True
+    )
+
+    # 患者列表
     section("患者列表")
-    df=pd.DataFrame(rows); st.dataframe(df.drop(columns=["patient_id"]) if not df.empty else df, use_container_width=True, hide_index=True)
-    if rows:
-        labels=[f"{r['编号']}｜{r['姓名']}｜{r['性别']}｜{r['年龄']}岁" for r in rows]; label=st.selectbox("选择患者",labels)
-        pid=rows[labels.index(label)]["patient_id"]
-        c1,c2=st.columns(2)
-        if c1.button("查看详情", use_container_width=True): st.session_state["patient_id"]=pid; st.session_state["show_detail"]=True; st.rerun()
-        if c2.button("删除该患者（软删除）", use_container_width=True): soft_delete_patient(pid); st.rerun()
-    if st.session_state.get("show_detail") and st.session_state.get("patient_id"): st.divider(); patient_detail(st.session_state["patient_id"])
+
+    if not rows:
+        st.warning("没有符合当前筛选条件的患者。")
+        return
+
+    st.markdown('<div class="patient-table-wrap">', unsafe_allow_html=True)
+
+    list_left, list_right = st.columns([4, 1])
+    with list_left:
+        st.caption("点击患者姓名进入详情；点击“复诊”直接进入今日复诊。")
+    with list_right:
+        st.caption(f"共 {len(rows)} 条")
+
+    # 表头
+    h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12 = st.columns(
+        [1.05, 0.95, 0.48, 0.48, 1.15, 0.95, 0.95, 0.8, 0.9, 1.25, 1.45, 0.95]
+    )
+
+    h1.markdown('<div class="patient-table-head">编号</div>', unsafe_allow_html=True)
+    h2.markdown('<div class="patient-table-head">姓名</div>', unsafe_allow_html=True)
+    h3.markdown('<div class="patient-table-head">性别</div>', unsafe_allow_html=True)
+    h4.markdown('<div class="patient-table-head">年龄</div>', unsafe_allow_html=True)
+    h5.markdown('<div class="patient-table-head">手机号</div>', unsafe_allow_html=True)
+    h6.markdown('<div class="patient-table-head">初诊日期</div>', unsafe_allow_html=True)
+    h7.markdown('<div class="patient-table-head">最近复诊</div>', unsafe_allow_html=True)
+    h8.markdown('<div class="patient-table-head">体重</div>', unsafe_allow_html=True)
+    h9.markdown('<div class="patient-table-head">体重指数</div>', unsafe_allow_html=True)
+    h10.markdown('<div class="patient-table-head">主要诊断</div>', unsafe_allow_html=True)
+    h11.markdown('<div class="patient-table-head">标签</div>', unsafe_allow_html=True)
+    h12.markdown('<div class="patient-table-head">操作</div>', unsafe_allow_html=True)
+
+    # 表格行
+    for r in rows:
+        c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12 = st.columns(
+            [1.05, 0.95, 0.48, 0.48, 1.15, 0.95, 0.95, 0.8, 0.9, 1.25, 1.45, 0.95]
+        )
+
+        c1.markdown(f"<div class='patient-row'>{r['编号']}</div>", unsafe_allow_html=True)
+
+        # 患者姓名作为可点击入口
+        if c2.button(r["姓名"], key=f"open_patient_{r['patient_id']}", use_container_width=True):
+            st.session_state["patient_id"] = r["patient_id"]
+            st.session_state["show_detail"] = True
+            st.session_state["quick_action"] = None
+            st.rerun()
+
+        c3.markdown(f"<div class='patient-row'>{r['性别']}</div>", unsafe_allow_html=True)
+        c4.markdown(f"<div class='patient-row'>{r['年龄']}</div>", unsafe_allow_html=True)
+        c5.markdown(f"<div class='patient-row'>{r['手机号']}</div>", unsafe_allow_html=True)
+        c6.markdown(f"<div class='patient-row'>{r['初诊日期']}</div>", unsafe_allow_html=True)
+        c7.markdown(f"<div class='patient-row'>{r['最近复诊']}</div>", unsafe_allow_html=True)
+        c8.markdown(f"<div class='patient-row'>{'' if r['最近体重'] in [None, ''] else fmt(r['最近体重'])}</div>", unsafe_allow_html=True)
+        c9.markdown(f"<div class='patient-row'>{'' if r['最近体重指数'] in [None, ''] else fmt(r['最近体重指数'])}</div>", unsafe_allow_html=True)
+        c10.markdown(f"<div class='patient-row'>{r['主要诊断']}</div>", unsafe_allow_html=True)
+        c11.markdown(f"<div class='patient-row-muted'>{r['标签']}</div>", unsafe_allow_html=True)
+
+        # 复诊按钮
+        if c12.button("复诊", key=f"quick_visit_from_list_{r['patient_id']}", use_container_width=True):
+            st.session_state["patient_id"] = r["patient_id"]
+            st.session_state["show_detail"] = True
+            st.session_state["quick_action"] = "visit"
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 下方直接展示患者详情，不再使用“选择患者”下拉框和大按钮
+    if st.session_state.get("show_detail") and st.session_state.get("patient_id"):
+        st.divider()
+        patient_detail(st.session_state["patient_id"])
+
 
 def visit_form(p, v=None, form_suffix='', show_extended_fields=True):
     v=v or {}
