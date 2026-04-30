@@ -46,6 +46,44 @@ div[data-baseweb="tab-list"]{gap:8px;border-bottom:1px solid #e5edf6;}button[dat
 [data-testid="stAlert"]{border-radius:18px!important}.wc-note{color:#667085;font-size:13px;line-height:1.8}
 @media(max-width:1100px){.stat-row,.overview-grid{grid-template-columns:repeat(2,1fr)}.hero h1{font-size:32px}.patient-strip{display:block}.patient-avatar{margin-top:12px}}
 @media(max-width:760px){.stat-row,.overview-grid{grid-template-columns:1fr}.main .block-container{padding-left:1rem;padding-right:1rem}}
+
+/* v3.2 sidebar user card fix */
+.wc-user-card{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 12px;
+  margin:16px 0 10px 0;
+  border-radius:18px;
+  background:linear-gradient(135deg,#ffffff,#f2fbfa);
+  border:1px solid #dbeef0;
+  box-shadow:0 8px 20px rgba(31,50,74,.06);
+}
+.wc-user-avatar{
+  width:36px;
+  height:36px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  background:#e9f8ff;
+  color:#2563eb;
+  font-weight:900;
+}
+.wc-user-name{
+  font-size:14px;
+  color:#10233d;
+  font-weight:900;
+  line-height:1.2;
+}
+.wc-user-role{
+  font-size:12px;
+  color:#72839a;
+  margin-top:2px;
+}
+[data-testid="stSidebar"] .stButton>button{
+  margin-top:4px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -99,8 +137,28 @@ def stat_grid(items):
 
 
 def overview_cards(meds, tongue_text, pulse_text, labs):
-    med_items = "".join([f"<li>{m}</li>" for m in meds]) or "<li>暂无当前用药记录</li>"
-    lab_items = "".join([f"<li>{x}</li>" for x in labs]) or "<li>暂无近期辅助检查</li>"
+    def med_to_text(m):
+        if isinstance(m, dict):
+            name = m.get("medicine_name") or "未命名方案"
+            dose = m.get("dose") or ""
+            freq = m.get("frequency") or ""
+            status = m.get("current_status") or ""
+            text = " ".join([str(x) for x in [name, dose, freq] if x])
+            return f"{text}（{status}）" if status else text
+        return str(m)
+
+    def lab_to_text(x):
+        if isinstance(x, dict):
+            item = x.get("item_name") or "未命名项目"
+            value = x.get("result_value") if x.get("result_value") is not None else x.get("result_text")
+            unit = x.get("unit") or ""
+            flag = x.get("abnormal_flag") or ""
+            result = f"{value} {unit}".strip() if value not in (None, "") else "未填结果"
+            return f"{item}：{result}（{flag}）" if flag else f"{item}：{result}"
+        return str(x)
+
+    med_items = "".join([f"<li>{med_to_text(m)}</li>" for m in (meds or [])]) or "<li>暂无当前用药记录</li>"
+    lab_items = "".join([f"<li>{lab_to_text(x)}</li>" for x in (labs or [])]) or "<li>暂无近期辅助检查</li>"
     st.markdown(
         f"""
         <div class='overview-grid'>
@@ -111,7 +169,6 @@ def overview_cards(meds, tongue_text, pulse_text, labs):
         """,
         unsafe_allow_html=True,
     )
-
 
 def chart_open():
     st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
