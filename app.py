@@ -8,19 +8,7 @@ from modules.auth import require_login, logout
 from modules.calc import LAB_TEMPLATES, abnormal, bmi, fmt, ideal_weight, loss, whr
 from modules.db import *
 from modules.report import a5_html
-from modules.ui import css, hero, boundary, tags_html
-try:
-    from modules.ui import brand, section, patient_header
-except ImportError:
-    def brand():
-        st.sidebar.markdown("### ⚖️ 逢安堂")
-    def section(title):
-        st.subheader(title)
-    def patient_header(patient):
-        st.markdown(
-            f"### {patient.get('name','')}\n"
-            f"{patient.get('patient_code','')}｜{patient.get('sex','')}｜{patient.get('age','')}岁"
-        )
+from modules.ui import css, hero, boundary, tags_html, brand, section, patient_header, stat_grid, overview_cards, chart_open, chart_close
 
 st.set_page_config(page_title="减重门诊管理系统（逢安堂）", page_icon="⚖️", layout="wide")
 css()
@@ -101,7 +89,14 @@ def page_patients():
     hero("患者管理","新增、搜索、筛选并进入患者详情")
     boundary(); new_patient_panel()
     ps=list_patients()
-    if not ps: return
+    if not ps:
+        st.info("暂无患者，请先新增患者。")
+        return
+    diabetes=sum("糖尿病" in safe_tags(p) or "血糖异常" in safe_tags(p) for p in ps)
+    lipid=sum("高脂血症" in safe_tags(p) or "血脂异常" in safe_tags(p) for p in ps)
+    key_follow=sum("重点复诊" in safe_tags(p) for p in ps)
+    stat_grid([("患者总数",len(ps),"当前已建档患者"),("血糖相关",diabetes,"糖尿病或血糖异常"),("血脂相关",lipid,"高脂血症或血脂异常"),("重点复诊",key_follow,"需要重点随访")])
+    section("患者检索与筛选")
     q=st.text_input("搜索患者", placeholder="姓名 / 手机号 / 患者编号"); tf=st.multiselect("标签筛选",TAGS, placeholder="请选择标签")
     rows=[]
     for p in ps:
@@ -111,6 +106,7 @@ def page_patients():
         rel=related(p["patient_id"]); visits=rel.get("visits",[])
         lv=sorted(visits,key=lambda x:str(x.get("visit_date") or ""), reverse=True)[0] if visits else {}
         rows.append({"patient_id":p["patient_id"],"编号":p.get("patient_code"),"姓名":p.get("name"),"性别":p.get("sex"),"年龄":p.get("age"),"手机号":p.get("phone"),"初诊日期":p.get("first_visit_date"),"最近复诊":lv.get("visit_date"),"最近体重":lv.get("weight_kg"),"最近体重指数":bmi(lv.get("weight_kg"),p.get("height_cm")) if lv else None,"主要诊断":p.get("main_diagnosis"),"标签":"、".join(tags)})
+    section("患者列表")
     df=pd.DataFrame(rows); st.dataframe(df.drop(columns=["patient_id"]) if not df.empty else df, use_container_width=True, hide_index=True)
     if rows:
         labels=[f"{r['编号']}｜{r['姓名']}｜{r['性别']}｜{r['年龄']}岁" for r in rows]; label=st.selectbox("选择患者",labels)
@@ -143,8 +139,15 @@ def patient_detail(pid=None):
     rel=related(p["patient_id"]); hero("患者详情","患者随访、用药、舌脉、辅助检查与报告管理"); patient_header(p); cards(p,rel)
     tabs=st.tabs(["概览","复诊记录","用药调整","舌象/脉象","辅助检查","资料归档","打印报告","编辑基础信息"])
     with tabs[0]:
-        section("最近复诊摘要"); visits=rel.get("visits",[]); lv=sorted(visits,key=lambda x:str(x.get("visit_date") or ""),reverse=True)[0] if visits else {}
-        st.write(lv.get("clinical_assessment") or "暂无评估"); st.write("建议：", lv.get("clinical_advice") or "暂无建议")
+        visits=rel.get("visits",[]); lv=sorted(visits,key=lambda x:str(x.get("visit_date") or ""),reverse=True)[0] if visits else {}
+        meds=[f"{m.get('medicine_name','')} {m.get('dose','')} {m.get('frequency','')}" for m in rel.get("meds",[]) if m.get("current_status") in ("使用中",None,"")]
+        tongue=sorted(rel.get("tongues",[]),key=lambda x:str(x.get("image_date") or ""),reverse=True)[0] if rel.get("tongues") else {}
+        pulse=sorted(rel.get("pulses",[]),key=lambda x:str(x.get("pulse_date") or ""),reverse=True)[0] if rel.get("pulses") else {}
+        labs=sorted(rel.get("labs",[]),key=lambda x:str(x.get("lab_date") or ""),reverse=True)[:4]
+        lab_text=[f"{x.get('item_name','')}：{x.get('result_value') or x.get('result_text') or '暂无'} {x.get('unit') or ''}（{x.get('abnormal_flag') or '未判断'}）" for x in labs]
+        overview_cards(meds[-4:], f"舌质 {tongue.get('tongue_body_color','未记录')}，舌苔 {tongue.get('tongue_coating','未记录')}，舌形 {tongue.get('tongue_shape','未记录')}", pulse.get('overall_pulse','未记录'), lab_text)
+        section("最近复诊摘要")
+        st.markdown(f"<div class='section-card'><p><b>本次评估：</b>{lv.get('clinical_assessment') or '暂无评估'}</p><p><b>本次建议：</b>{lv.get('clinical_advice') or '暂无建议'}</p></div>", unsafe_allow_html=True)
     with tabs[1]:
         section("新增复诊记录"); visit_form(p)
         section("历次复诊记录")
@@ -200,10 +203,10 @@ def page_trends():
     def make_line(df,x,y,title,ytitle):
         fig=px.line(df,x=x,y=y,markers=True,title=title,labels={x:"日期",y:ytitle})
         fig.update_traces(line=dict(width=3,color="#14a39a"),marker=dict(size=8,color="#14a39a"))
-        fig.update_layout(title=dict(font=dict(size=22,color="#10233d")),plot_bgcolor="white",paper_bgcolor="white",font=dict(family="Microsoft YaHei",color="#42526b"),margin=dict(l=30,r=20,t=60,b=30),hovermode="x unified")
+        fig.update_layout(title=dict(font=dict(size=22,color="#10233d")),plot_bgcolor="white",paper_bgcolor="white",font=dict(family="Microsoft YaHei",color="#42526b"),height=390,margin=dict(l=30,r=20,t=60,b=30),hovermode="x unified",showlegend=False)
         fig.update_xaxes(title_text="日期",gridcolor="#eef2f7",tickformat="%Y-%m-%d")
         fig.update_yaxes(title_text=ytitle,gridcolor="#eef2f7")
-        st.plotly_chart(fig,use_container_width=True)
+        chart_open(); st.plotly_chart(fig,use_container_width=True, config={"displayModeBar": False}); chart_close()
     if not visits.empty:
         visits["visit_date"]=pd.to_datetime(visits["visit_date"])
         for y,t,yt in [("weight_kg","体重变化","体重（千克）"),("waist_cm","腰围变化","腰围（厘米）"),("bmi","体重指数变化","体重指数")]:
