@@ -541,7 +541,7 @@ def page_patients():
         if c2.button("删除该患者（软删除）", use_container_width=True): soft_delete_patient(pid); st.rerun()
     if st.session_state.get("show_detail") and st.session_state.get("patient_id"): st.divider(); patient_detail(st.session_state["patient_id"])
 
-def visit_form(p, v=None, form_suffix=''):
+def visit_form(p, v=None, form_suffix='', show_extended_fields=True):
     v=v or {}
     with st.form(f"visit_{v.get('visit_id','new')}_{form_suffix}"):
         a,b,c,d=st.columns(4)
@@ -550,7 +550,17 @@ def visit_form(p, v=None, form_suffix=''):
         e,f,g=st.columns(3); sbp=e.number_input("收缩压",0,value=int(v.get("systolic_bp") or 0)); dbp=f.number_input("舒张压",0,value=int(v.get("diastolic_bp") or 0)); hr=g.number_input("心率",0,value=int(v.get("heart_rate") or 0))
         h,i,j,k=st.columns(4)
         diet=h.selectbox("饮食",DIET,index=DIET.index(v.get("diet_adherence")) if v.get("diet_adherence") in DIET else 0); ex=i.selectbox("运动",EX,index=EX.index(v.get("exercise_status")) if v.get("exercise_status") in EX else 0); sleep=j.selectbox("睡眠",SL,index=SL.index(v.get("sleep_status")) if v.get("sleep_status") in SL else 0); stool=k.selectbox("大便",ST,index=ST.index(v.get("stool_status")) if v.get("stool_status") in ST else 0)
-        dis=st.text_input("不适症状",v.get("discomfort_symptoms") or "未诉明显不适"); ass=st.text_area("评估",v.get("clinical_assessment") or ""); adv=st.text_area("建议",v.get("clinical_advice") or ""); nextd=st.date_input("下次复诊",pd.to_datetime(v.get("next_visit_date") or (date.today()+timedelta(days=7))).date()); notes=st.text_area("备注",v.get("notes") or "")
+        dis=st.text_input("不适症状",v.get("discomfort_symptoms") or "未诉明显不适")
+        if show_extended_fields:
+            ass=st.text_area("评估",v.get("clinical_assessment") or "")
+            adv=st.text_area("建议",v.get("clinical_advice") or "")
+            nextd=st.date_input("下次复诊",pd.to_datetime(v.get("next_visit_date") or (date.today()+timedelta(days=7))).date())
+            notes=st.text_area("备注",v.get("notes") or "")
+        else:
+            ass=v.get("clinical_assessment") or ""
+            adv=v.get("clinical_advice") or ""
+            nextd=pd.to_datetime(v.get("next_visit_date") or (date.today()+timedelta(days=7))).date()
+            notes=v.get("notes") or ""
         ok=st.form_submit_button("保存复诊记录", use_container_width=True)
     if ok:
         row={"visit_date":str(vd),"weight_kg":wt,"waist_cm":waist or None,"hip_cm":hip or None,"systolic_bp":sbp or None,"diastolic_bp":dbp or None,"heart_rate":hr or None,"diet_adherence":diet,"exercise_status":ex,"sleep_status":sleep,"stool_status":stool,"discomfort_symptoms":dis,"clinical_assessment":ass,"clinical_advice":adv,"next_visit_date":str(nextd),"notes":notes}
@@ -580,7 +590,7 @@ def patient_detail(pid=None):
 
     if st.session_state.get("quick_action") == "visit":
         section("今日复诊")
-        visit_form(p, form_suffix="quick")
+        visit_form(p, form_suffix="quick", show_extended_fields=False)
     elif st.session_state.get("quick_action") == "med":
         render_medication_quick_panel(p, sorted(raw_rel.get("meds", []), key=lambda x: sort_key_date_id(x, "medication_date", "medication_id"), reverse=True), prefix=f"quick_med_panel_{p['patient_id']}")
     elif st.session_state.get("quick_action") == "lab":
