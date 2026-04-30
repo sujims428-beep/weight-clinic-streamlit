@@ -8,7 +8,45 @@ from modules.auth import require_login, logout
 from modules.calc import LAB_TEMPLATES, abnormal, bmi, fmt, ideal_weight, loss, whr
 from modules.db import *
 from modules.report import a5_html
-from modules.ui import css, hero, boundary, tags_html, brand, section, patient_header, stat_grid, overview_cards, chart_open, chart_close
+from modules.ui import css, hero, boundary, tags_html
+try:
+    from modules.ui import brand, section, patient_header, stat_grid, overview_cards, chart_open, chart_close
+except ImportError:
+    # 防止线上只替换 app.py、未同步 modules/ui.py 时直接崩溃
+    def brand():
+        st.sidebar.markdown("### ⚖️ 逢安堂")
+    def section(title):
+        st.markdown(f"### {title}")
+    def patient_header(patient):
+        st.markdown(
+            f"### {patient.get('name','')}\n"
+            f"{patient.get('patient_code','')}｜{patient.get('sex','')}｜{patient.get('age','')}岁"
+        )
+    def stat_grid(items):
+        cols = st.columns(len(items) if items else 1)
+        for col, item in zip(cols, items):
+            title, value, note = item
+            col.metric(title, value, note)
+    def overview_cards(meds, tongue_text, pulse_text, lab_text):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown("#### 当前用药 / 调理方案")
+            if meds:
+                for m in meds:
+                    st.write(f"- {m.get('medicine_name','')} {m.get('dose','')} {m.get('frequency','')}")
+            else:
+                st.caption("暂无当前用药")
+        with c2:
+            st.markdown("#### 舌象与脉象记录")
+            st.write(f"舌象：{tongue_text or '未记录'}")
+            st.write(f"脉象：{pulse_text or '未记录'}")
+        with c3:
+            st.markdown("#### 最近辅助检查")
+            st.write(lab_text or "暂无辅助检查")
+    def chart_open():
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+    def chart_close():
+        st.markdown("</div>", unsafe_allow_html=True)
 
 st.set_page_config(page_title="减重门诊管理系统（逢安堂）", page_icon="⚖️", layout="wide")
 css()
@@ -24,7 +62,11 @@ def show_table(rows, height=None):
     hidden=[c for c in df.columns if c.endswith("_id") or c in ["created_at","updated_at","is_deleted","image_path","file_path","source_file_path"]]
     df=df.drop(columns=[c for c in hidden if c in df.columns], errors="ignore")
     df=df.rename(columns={k:v for k,v in COLMAP.items() if k in df.columns})
-    st.dataframe(df, use_container_width=True, hide_index=True, height=height)
+    # Streamlit 新版本不接受 height=None，所以只有明确传入高度时才写入 height 参数。
+    if height is None:
+        st.dataframe(df, use_container_width=True, hide_index=True)
+    else:
+        st.dataframe(df, use_container_width=True, hide_index=True, height=height)
 
 def stop_if_unconfigured():
     if not ok():
@@ -235,7 +277,9 @@ def page_settings():
 def main():
     if not require_login(): return
     stop_if_unconfigured()
-    brand(); page=st.sidebar.radio("功能导航",["患者管理","趋势分析","导出与备份","系统设置"],label_visibility="collapsed"); logout()
+    brand()
+    page=st.sidebar.radio("功能导航",["患者管理","趋势分析","导出与备份","系统设置"],label_visibility="collapsed")
+    logout()
     if page=="患者管理": page_patients()
     elif page=="趋势分析": page_trends()
     elif page=="导出与备份": page_export()
