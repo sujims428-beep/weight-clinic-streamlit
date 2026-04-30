@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import date, timedelta
 import json
+import re
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -53,6 +54,37 @@ css()
 
 TAGS=["减重门诊","糖尿病","高脂血症","脂肪肝","高尿酸血症","中药调理","重点复诊","依从性差","血糖异常","血脂异常","代谢综合征"]
 DIET=["良好","一般","较差","未记录","基本执行"]; EX=["规律运动","偶尔运动","未运动","未记录"]; SL=["良好","一般","较差","失眠","未记录"]; ST=["正常","便秘","腹泻","不规律","未记录"]
+
+def next_patient_code():
+    """根据现有患者编号自动生成下一个编号，避免重复编号导致数据库报错。"""
+    year = str(date.today().year)
+    max_no = 0
+    for p in list_patients():
+        code = str(p.get("patient_code") or "")
+        m = re.match(rf"^P{year}(\d+)$", code)
+        if m:
+            try:
+                max_no = max(max_no, int(m.group(1)))
+            except Exception:
+                pass
+    return f"P{year}{max_no + 1:04d}"
+
+def optional_float_text(value):
+    """把可空输入转成小数；空白代表无。"""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if s in ("", "无", "未测", "未记录"):
+        return None
+    try:
+        return float(s)
+    except Exception:
+        raise ValueError(f"数值格式不正确：{s}")
+
+def optional_int_text(value):
+    v = optional_float_text(value)
+    return None if v is None else int(round(v))
+
 COLMAP={"patient_code":"患者编号","name":"姓名","sex":"性别","age":"年龄","phone":"手机号","height_cm":"身高","first_visit_date":"初诊日期","initial_weight_kg":"初诊体重","target_weight_kg":"目标体重","main_diagnosis":"主要诊断","tags":"标签","notes":"备注","visit_date":"复诊日期","weight_kg":"体重","bmi":"体重指数","waist_cm":"腰围","hip_cm":"臀围","waist_hip_ratio":"腰臀比","systolic_bp":"收缩压","diastolic_bp":"舒张压","heart_rate":"心率","diet_adherence":"饮食执行","exercise_status":"运动情况","sleep_status":"睡眠情况","stool_status":"大便情况","discomfort_symptoms":"不适症状","clinical_assessment":"本次评估","clinical_advice":"本次建议","next_visit_date":"下次复诊","medication_date":"用药日期","medicine_name":"药物/方案","dose":"剂量","frequency":"频次","current_status":"状态","adjustment_type":"调整类型","adjustment_reason":"调整原因","adverse_reaction":"不良反应","lab_date":"检查日期","lab_category":"类别","item_name":"项目","result_value":"结果数值","result_text":"文字结果","unit":"单位","reference_low":"参考下限","reference_high":"参考上限","abnormal_flag":"异常提示","hospital_name":"医院","image_date":"舌象日期","tongue_body_color":"舌质","tongue_coating":"舌苔","tongue_shape":"舌形","tooth_marks":"齿痕","cracks":"裂纹","moisture":"津液","pulse_date":"脉象日期","overall_pulse":"整体脉象","left_cun":"左寸","left_guan":"左关","left_chi":"左尺","right_cun":"右寸","right_guan":"右关","right_chi":"右尺","upload_date":"上传日期","document_date":"资料日期","file_type":"资料类型","file_name":"文件名","file_url":"文件链接"}
 
 def show_table(rows, height=None):
@@ -105,27 +137,104 @@ def cards(p, rel=None):
 
 def new_patient_panel():
     with st.expander("＋ 新增患者 / 初诊建档", expanded=False):
+        default_code = next_patient_code()
         with st.form("new_patient"):
             a,b,c,d=st.columns(4)
-            code=a.text_input("患者编号", f"P{date.today().year}0001"); name=b.text_input("姓名"); sex=c.selectbox("性别",["男","女"]); age=d.number_input("年龄",0,120,40)
+            code=a.text_input("患者编号", default_code)
+            name=b.text_input("姓名")
+            sex=c.selectbox("性别",["男","女"])
+            age=d.number_input("年龄",0,120,40)
+
             e,f,g,h=st.columns(4)
-            phone=e.text_input("手机号"); height=f.number_input("身高（厘米）",80.0,230.0,170.0); first=g.date_input("初诊日期",date.today()); weight=h.number_input("初诊体重（千克）",0.0,value=80.0)
-            lo,hi,mid=ideal_weight(height); st.info(f"当前体重指数：{fmt(bmi(weight,height))}；目标体重参考：{fmt(lo)}–{fmt(hi)} 千克")
-            target=st.number_input("目标体重（千克）",0.0,value=float(mid or 65)); diag=st.text_input("主要诊断/主要问题","肥胖/体重管理")
-            tags=st.multiselect("标签",TAGS,["减重门诊"], placeholder="请选择标签"); notes=st.text_area("备注")
+            phone=e.text_input("手机号")
+            height=f.number_input("身高（厘米）",80.0,230.0,170.0)
+            first=g.date_input("初诊日期",date.today())
+            weight=h.number_input("初诊体重（千克）",0.0,value=80.0)
+
+            lo,hi,mid=ideal_weight(height)
+            st.info(f"当前体重指数：{fmt(bmi(weight,height))}；目标体重参考：{fmt(lo)}–{fmt(hi)} 千克")
+
+            target=st.number_input("目标体重（千克）",0.0,value=float(mid or 65))
+            diag=st.text_input("主要诊断/主要问题","肥胖/体重管理")
+            tags=st.multiselect("标签",TAGS,["减重门诊"], placeholder="请选择标签")
+            notes=st.text_area("备注")
+
             section("初诊基线")
+            st.caption("没有检测或没有记录的项目请留空，系统会按“无”处理，不再默认写入 0。")
             x1,x2,x3,x4,x5=st.columns(5)
-            waist=x1.number_input("腰围（厘米）",0.0,value=0.0); hip=x2.number_input("臀围（厘米）",0.0,value=0.0); sbp=x3.number_input("收缩压",0,value=0); dbp=x4.number_input("舒张压",0,value=0); hr=x5.number_input("心率",0,value=0)
+            waist_text=x1.text_input("腰围（厘米）", value="", placeholder="无")
+            hip_text=x2.text_input("臀围（厘米）", value="", placeholder="无")
+            sbp_text=x3.text_input("收缩压", value="", placeholder="无")
+            dbp_text=x4.text_input("舒张压", value="", placeholder="无")
+            hr_text=x5.text_input("心率", value="", placeholder="无")
+
             y1,y2,y3,y4=st.columns(4)
-            diet=y1.selectbox("饮食",DIET); ex=y2.selectbox("运动",EX); sleep=y3.selectbox("睡眠",SL); stool=y4.selectbox("大便",ST)
-            discomfort=st.text_input("不适症状","未诉明显不适"); ass=st.text_area("初诊评估","初诊建档，建立减重管理基线。"); adv=st.text_area("初诊建议","进行饮食、运动及生活方式管理，按期复诊。")
+            diet=y1.selectbox("饮食",DIET)
+            ex=y2.selectbox("运动",EX)
+            sleep=y3.selectbox("睡眠",SL)
+            stool=y4.selectbox("大便",ST)
+
+            discomfort=st.text_input("不适症状","未诉明显不适")
+            ass=st.text_area("初诊评估","初诊建档，建立减重管理基线。")
+            adv=st.text_area("初诊建议","进行饮食、运动及生活方式管理，按期复诊。")
             nextd=st.date_input("下次复诊日期", date.today()+timedelta(days=7))
             submitted=st.form_submit_button("保存患者并生成初诊基线", use_container_width=True)
+
         if submitted:
-            if not name: st.error("姓名不能为空"); return
-            p=create_patient({"patient_code":code,"name":name,"sex":sex,"age":int(age),"phone":phone,"height_cm":height,"first_visit_date":str(first),"initial_weight_kg":weight,"target_weight_kg":target,"main_diagnosis":diag,"tags":tags,"notes":notes})
-            create_visit(p,{"visit_date":str(first),"weight_kg":weight,"waist_cm":waist or None,"hip_cm":hip or None,"systolic_bp":sbp or None,"diastolic_bp":dbp or None,"heart_rate":hr or None,"diet_adherence":diet,"exercise_status":ex,"sleep_status":sleep,"stool_status":stool,"discomfort_symptoms":discomfort,"clinical_assessment":ass,"clinical_advice":adv,"next_visit_date":str(nextd)})
-            st.session_state["patient_id"]=p["patient_id"]; st.success("患者保存成功"); st.rerun()
+            if not name:
+                st.error("姓名不能为空")
+                return
+            try:
+                waist = optional_float_text(waist_text)
+                hip = optional_float_text(hip_text)
+                sbp = optional_int_text(sbp_text)
+                dbp = optional_int_text(dbp_text)
+                hr = optional_int_text(hr_text)
+
+                p=create_patient({
+                    "patient_code":code.strip(),
+                    "name":name.strip(),
+                    "sex":sex,
+                    "age":int(age),
+                    "phone":phone,
+                    "height_cm":height,
+                    "first_visit_date":str(first),
+                    "initial_weight_kg":weight,
+                    "target_weight_kg":target,
+                    "main_diagnosis":diag,
+                    "tags":tags,
+                    "notes":notes
+                })
+
+                create_visit(p,{
+                    "visit_date":str(first),
+                    "weight_kg":weight,
+                    "waist_cm":waist,
+                    "hip_cm":hip,
+                    "systolic_bp":sbp,
+                    "diastolic_bp":dbp,
+                    "heart_rate":hr,
+                    "diet_adherence":diet,
+                    "exercise_status":ex,
+                    "sleep_status":sleep,
+                    "stool_status":stool,
+                    "discomfort_symptoms":discomfort,
+                    "clinical_assessment":ass,
+                    "clinical_advice":adv,
+                    "next_visit_date":str(nextd)
+                })
+                st.session_state["patient_id"]=p["patient_id"]
+                st.success("患者保存成功")
+                st.rerun()
+            except ValueError as e:
+                st.error(str(e))
+            except Exception as e:
+                msg = str(e)
+                if "duplicate" in msg.lower() or "unique" in msg.lower() or "patients_patient_code" in msg.lower():
+                    st.error("保存失败：患者编号已存在。系统已自动生成新编号，请刷新页面后再试，或手动修改患者编号。")
+                else:
+                    st.error("保存失败：数据库写入异常。请检查患者编号是否重复、建表文件是否完整执行。")
+
 
 def page_patients():
     hero("患者管理","新增、搜索、筛选并进入患者详情")
