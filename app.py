@@ -53,6 +53,41 @@ st.set_page_config(page_title="减重门诊管理系统（逢安堂）", page_ic
 css()
 
 
+# v3.12：改为页面内左侧固定功能栏，不再依赖 Streamlit 原生侧边栏。
+st.markdown("""
+<style>
+[data-testid="stSidebar"]{
+    display:none !important;
+    visibility:hidden !important;
+    width:0 !important;
+    min-width:0 !important;
+}
+[data-testid="collapsedControl"]{
+    display:none !important;
+    visibility:hidden !important;
+}
+div[data-testid="column"]:first-child{
+    position: sticky;
+    top: 1rem;
+    align-self: flex-start;
+}
+div[data-testid="stRadio"] label{
+    font-weight: 800 !important;
+    color: #26364f !important;
+}
+div[data-testid="stRadio"] div[role="radiogroup"] label{
+    padding: 8px 10px;
+    border-radius: 12px;
+    margin: 3px 0;
+}
+div[data-testid="stRadio"] div[role="radiogroup"] label:hover{
+    background: #eefbf8;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+
 # v3.11：强制恢复并固定左侧功能栏，避免浏览器记住“折叠侧边栏”后无法再打开。
 st.markdown("""
 <style>
@@ -119,6 +154,70 @@ def render_sidebar_brand():
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_left_navigation():
+    """不用 Streamlit 原生侧边栏，改用页面左侧固定导航区，避免侧边栏被折叠后消失。"""
+    st.markdown(
+        f"""
+        <div style="
+            background: linear-gradient(180deg, #f8fffd 0%, #eef8f5 100%);
+            border: 1px solid #d9eee7;
+            border-radius: 20px;
+            padding: 14px 12px 12px 12px;
+            margin: 0 0 18px 0;
+            box-shadow: 0 10px 26px rgba(15, 118, 110, 0.08);
+        ">
+            <div style="display:flex; justify-content:center; align-items:center; margin-bottom:10px;">
+                <img src="data:image/jpeg;base64,{BRAND_IMAGE_BASE64}" style="
+                    width: 100%;
+                    max-width: 210px;
+                    border-radius: 12px;
+                    display:block;
+                    object-fit: contain;
+                    background: #ffffff;
+                ">
+            </div>
+            <div style="font-size: 12px; color: #5f6f6d; text-align:center; letter-spacing:0.5px;">
+                减重门诊管理系统
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    page = st.radio(
+        "功能导航",
+        ["患者管理", "趋势分析", "导出与备份", "系统设置"],
+        label_visibility="collapsed",
+        key="main_left_navigation_radio"
+    )
+
+    user = st.session_state.get("user") or {}
+    st.markdown(
+        f"""
+        <div style="
+            margin-top: 18px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: #ffffff;
+            border: 1px solid #e4edf5;
+            color: #344054;
+            box-shadow: 0 8px 20px rgba(31, 50, 74, 0.05);
+            font-size: 13px;
+            line-height: 1.7;
+        ">
+            <b>当前用户</b><br>{user.get("display_name", "苏医生")}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.button("退出登录", use_container_width=True, key="left_nav_logout"):
+        st.session_state.pop("user", None)
+        st.session_state.pop("show_detail", None)
+        st.session_state.pop("patient_id", None)
+        st.rerun()
+    return page
 
 
 TAGS=["减重门诊","糖尿病","高脂血症","脂肪肝","高尿酸血症","中药调理","重点复诊","依从性差","血糖异常","血脂异常","代谢综合征"]
@@ -1051,14 +1150,22 @@ def page_settings():
     hero("系统设置","部署状态、医学边界和配置检查"); boundary(); st.write("云数据库连接状态：", "已连接" if ok() else "未连接"); st.markdown("部署步骤：执行建表文件 → 创建云端文件柜 → 上传代码仓库 → 在线平台选择主程序文件 → 填写密钥 → 发布。")
 
 def main():
-    if not require_login(): return
+    if not require_login():
+        return
     stop_if_unconfigured()
-    render_sidebar_brand()
-    page=st.sidebar.radio("功能导航",["患者管理","趋势分析","导出与备份","系统设置"],label_visibility="collapsed")
-    logout()
-    if page=="患者管理": page_patients()
-    elif page=="趋势分析": page_trends()
-    elif page=="导出与备份": page_export()
-    else: page_settings()
+
+    left_col, main_col = st.columns([0.18, 0.82], gap="large")
+    with left_col:
+        page = render_left_navigation()
+
+    with main_col:
+        if page == "患者管理":
+            page_patients()
+        elif page == "趋势分析":
+            page_trends()
+        elif page == "导出与备份":
+            page_export()
+        else:
+            page_settings()
 
 if __name__=="__main__": main()
