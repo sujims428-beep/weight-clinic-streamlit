@@ -49,78 +49,8 @@ except ImportError:
     def chart_close():
         st.markdown("</div>", unsafe_allow_html=True)
 
-st.set_page_config(page_title="减重门诊管理系统（逢安堂）", page_icon="⚖️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="减重门诊管理系统（逢安堂）", page_icon="⚖️", layout="wide")
 css()
-
-
-# v3.12：改为页面内左侧固定功能栏，不再依赖 Streamlit 原生侧边栏。
-st.markdown("""
-<style>
-[data-testid="stSidebar"]{
-    display:none !important;
-    visibility:hidden !important;
-    width:0 !important;
-    min-width:0 !important;
-}
-[data-testid="collapsedControl"]{
-    display:none !important;
-    visibility:hidden !important;
-}
-div[data-testid="column"]:first-child{
-    position: sticky;
-    top: 1rem;
-    align-self: flex-start;
-}
-div[data-testid="stRadio"] label{
-    font-weight: 800 !important;
-    color: #26364f !important;
-}
-div[data-testid="stRadio"] div[role="radiogroup"] label{
-    padding: 8px 10px;
-    border-radius: 12px;
-    margin: 3px 0;
-}
-div[data-testid="stRadio"] div[role="radiogroup"] label:hover{
-    background: #eefbf8;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
-
-# v3.11：强制恢复并固定左侧功能栏，避免浏览器记住“折叠侧边栏”后无法再打开。
-st.markdown("""
-<style>
-[data-testid="stSidebar"]{
-    display:block !important;
-    visibility:visible !important;
-    min-width:260px !important;
-    width:260px !important;
-    max-width:260px !important;
-}
-[data-testid="stSidebar"] > div:first-child{
-    display:block !important;
-    visibility:visible !important;
-    min-width:260px !important;
-    width:260px !important;
-    max-width:260px !important;
-}
-section[data-testid="stSidebar"]{
-    display:block !important;
-    visibility:visible !important;
-}
-[data-testid="collapsedControl"]{
-    display:block !important;
-    visibility:visible !important;
-}
-@media (min-width: 900px){
-    .main .block-container{
-        max-width:1380px;
-    }
-}
-</style>
-""", unsafe_allow_html=True)
-
 
 
 BRAND_IMAGE_BASE64 = "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"
@@ -154,70 +84,6 @@ def render_sidebar_brand():
         """,
         unsafe_allow_html=True,
     )
-
-
-def render_left_navigation():
-    """不用 Streamlit 原生侧边栏，改用页面左侧固定导航区，避免侧边栏被折叠后消失。"""
-    st.markdown(
-        f"""
-        <div style="
-            background: linear-gradient(180deg, #f8fffd 0%, #eef8f5 100%);
-            border: 1px solid #d9eee7;
-            border-radius: 20px;
-            padding: 14px 12px 12px 12px;
-            margin: 0 0 18px 0;
-            box-shadow: 0 10px 26px rgba(15, 118, 110, 0.08);
-        ">
-            <div style="display:flex; justify-content:center; align-items:center; margin-bottom:10px;">
-                <img src="data:image/jpeg;base64,{BRAND_IMAGE_BASE64}" style="
-                    width: 100%;
-                    max-width: 210px;
-                    border-radius: 12px;
-                    display:block;
-                    object-fit: contain;
-                    background: #ffffff;
-                ">
-            </div>
-            <div style="font-size: 12px; color: #5f6f6d; text-align:center; letter-spacing:0.5px;">
-                减重门诊管理系统
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    page = st.radio(
-        "功能导航",
-        ["患者管理", "趋势分析", "导出与备份", "系统设置"],
-        label_visibility="collapsed",
-        key="main_left_navigation_radio"
-    )
-
-    user = st.session_state.get("user") or {}
-    st.markdown(
-        f"""
-        <div style="
-            margin-top: 18px;
-            padding: 12px 14px;
-            border-radius: 16px;
-            background: #ffffff;
-            border: 1px solid #e4edf5;
-            color: #344054;
-            box-shadow: 0 8px 20px rgba(31, 50, 74, 0.05);
-            font-size: 13px;
-            line-height: 1.7;
-        ">
-            <b>当前用户</b><br>{user.get("display_name", "苏医生")}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    if st.button("退出登录", use_container_width=True, key="left_nav_logout"):
-        st.session_state.pop("user", None)
-        st.session_state.pop("show_detail", None)
-        st.session_state.pop("patient_id", None)
-        st.rerun()
-    return page
 
 
 TAGS=["减重门诊","糖尿病","高脂血症","脂肪肝","高尿酸血症","中药调理","重点复诊","依从性差","血糖异常","血脂异常","代谢综合征"]
@@ -578,54 +444,64 @@ def cards(p, rel=None):
     st.markdown(tags_html(safe_tags(p)), unsafe_allow_html=True)
 
 def new_patient_panel():
-    with st.expander("＋ 新增患者 / 初诊建档", expanded=False):
+    # 控制“新增患者 / 初诊建档”面板是否默认展开
+    expanded = st.session_state.get("open_new_patient_panel", False)
+
+    # 新增患者面板：默认折叠，点击顶部“新增患者”按钮后展开
+    with st.expander("＋ 新增患者 / 初诊建档", expanded=expanded):
+        # 自动生成患者编号
         default_code = next_patient_code()
+
+        # 新增患者表单
         with st.form("new_patient"):
-            a,b,c,d=st.columns(4)
-            code=a.text_input("患者编号", default_code)
-            name=b.text_input("姓名")
-            sex=c.selectbox("性别",["男","女"])
-            age=d.number_input("年龄",0,120,40)
+            a, b, c, d = st.columns(4)
+            code = a.text_input("患者编号", default_code)
+            name = b.text_input("姓名")
+            sex = c.selectbox("性别", ["男", "女"])
+            age = d.number_input("年龄", 0, 120, 40)
 
-            e,f,g,h=st.columns(4)
-            phone=e.text_input("手机号")
-            height=f.number_input("身高（厘米）",80.0,230.0,170.0)
-            first=g.date_input("初诊日期",date.today())
-            weight=h.number_input("初诊体重（千克）",0.0,value=80.0)
+            e, f, g, h = st.columns(4)
+            phone = e.text_input("手机号")
+            height = f.number_input("身高（厘米）", 80.0, 230.0, 170.0)
+            first = g.date_input("初诊日期", date.today())
+            weight = h.number_input("初诊体重（千克）", 0.0, value=80.0)
 
-            lo,hi,mid=ideal_weight(height)
-            st.info(f"当前体重指数：{fmt(bmi(weight,height))}；目标体重参考：{fmt(lo)}–{fmt(hi)} 千克")
+            lo, hi, mid = ideal_weight(height)
+            st.info(f"当前体重指数：{fmt(bmi(weight, height))}；目标体重参考：{fmt(lo)}–{fmt(hi)} 千克")
 
-            target=st.number_input("目标体重（千克）",0.0,value=float(mid or 65))
-            diag=st.text_input("主要诊断/主要问题","肥胖/体重管理")
-            tags=st.multiselect("标签",TAGS,["减重门诊"], placeholder="请选择标签")
-            notes=st.text_area("备注")
+            target = st.number_input("目标体重（千克）", 0.0, value=float(mid or 65))
+            diag = st.text_input("主要诊断/主要问题", "肥胖/体重管理")
+            tags = st.multiselect("标签", TAGS, ["减重门诊"], placeholder="请选择标签")
+            notes = st.text_area("备注")
 
             section("初诊基线")
             st.caption("没有检测或没有记录的项目请留空，系统会按“无”处理，不再默认写入 0。")
-            x1,x2,x3,x4,x5=st.columns(5)
-            waist_text=x1.text_input("腰围（厘米）", value="", placeholder="无")
-            hip_text=x2.text_input("臀围（厘米）", value="", placeholder="无")
-            sbp_text=x3.text_input("收缩压", value="", placeholder="无")
-            dbp_text=x4.text_input("舒张压", value="", placeholder="无")
-            hr_text=x5.text_input("心率", value="", placeholder="无")
 
-            y1,y2,y3,y4=st.columns(4)
-            diet=y1.selectbox("饮食",DIET)
-            ex=y2.selectbox("运动",EX)
-            sleep=y3.selectbox("睡眠",SL)
-            stool=y4.selectbox("大便",ST)
+            x1, x2, x3, x4, x5 = st.columns(5)
+            waist_text = x1.text_input("腰围（厘米）", value="", placeholder="无")
+            hip_text = x2.text_input("臀围（厘米）", value="", placeholder="无")
+            sbp_text = x3.text_input("收缩压", value="", placeholder="无")
+            dbp_text = x4.text_input("舒张压", value="", placeholder="无")
+            hr_text = x5.text_input("心率", value="", placeholder="无")
 
-            discomfort=st.text_input("不适症状","未诉明显不适")
-            ass=st.text_area("初诊评估","初诊建档，建立减重管理基线。")
-            adv=st.text_area("初诊建议","进行饮食、运动及生活方式管理，按期复诊。")
-            nextd=st.date_input("下次复诊日期", date.today()+timedelta(days=7))
-            submitted=st.form_submit_button("保存患者并生成初诊基线", use_container_width=True)
+            y1, y2, y3, y4 = st.columns(4)
+            diet = y1.selectbox("饮食", DIET)
+            ex = y2.selectbox("运动", EX)
+            sleep = y3.selectbox("睡眠", SL)
+            stool = y4.selectbox("大便", ST)
+
+            discomfort = st.text_input("不适症状", "未诉明显不适")
+            ass = st.text_area("初诊评估", "初诊建档，建立减重管理基线。")
+            adv = st.text_area("初诊建议", "进行饮食、运动及生活方式管理，按期复诊。")
+            nextd = st.date_input("下次复诊日期", date.today() + timedelta(days=7))
+
+            submitted = st.form_submit_button("保存患者并生成初诊基线", use_container_width=True)
 
         if submitted:
             if not name:
                 st.error("姓名不能为空")
                 return
+
             try:
                 waist = optional_float_text(waist_text)
                 hip = optional_float_text(hip_text)
@@ -633,41 +509,45 @@ def new_patient_panel():
                 dbp = optional_int_text(dbp_text)
                 hr = optional_int_text(hr_text)
 
-                p=create_patient({
-                    "patient_code":code.strip(),
-                    "name":name.strip(),
-                    "sex":sex,
-                    "age":int(age),
-                    "phone":phone,
-                    "height_cm":height,
-                    "first_visit_date":str(first),
-                    "initial_weight_kg":weight,
-                    "target_weight_kg":target,
-                    "main_diagnosis":diag,
-                    "tags":tags,
-                    "notes":notes
+                p = create_patient({
+                    "patient_code": code.strip(),
+                    "name": name.strip(),
+                    "sex": sex,
+                    "age": int(age),
+                    "phone": phone,
+                    "height_cm": height,
+                    "first_visit_date": str(first),
+                    "initial_weight_kg": weight,
+                    "target_weight_kg": target,
+                    "main_diagnosis": diag,
+                    "tags": tags,
+                    "notes": notes
                 })
 
-                create_visit(p,{
-                    "visit_date":str(first),
-                    "weight_kg":weight,
-                    "waist_cm":waist,
-                    "hip_cm":hip,
-                    "systolic_bp":sbp,
-                    "diastolic_bp":dbp,
-                    "heart_rate":hr,
-                    "diet_adherence":diet,
-                    "exercise_status":ex,
-                    "sleep_status":sleep,
-                    "stool_status":stool,
-                    "discomfort_symptoms":discomfort,
-                    "clinical_assessment":ass,
-                    "clinical_advice":adv,
-                    "next_visit_date":str(nextd)
+                create_visit(p, {
+                    "visit_date": str(first),
+                    "weight_kg": weight,
+                    "waist_cm": waist,
+                    "hip_cm": hip,
+                    "systolic_bp": sbp,
+                    "diastolic_bp": dbp,
+                    "heart_rate": hr,
+                    "diet_adherence": diet,
+                    "exercise_status": ex,
+                    "sleep_status": sleep,
+                    "stool_status": stool,
+                    "discomfort_symptoms": discomfort,
+                    "clinical_assessment": ass,
+                    "clinical_advice": adv,
+                    "next_visit_date": str(nextd)
                 })
-                st.session_state["patient_id"]=p["patient_id"]
+
+                st.session_state["patient_id"] = p["patient_id"]
+                st.session_state["open_new_patient_panel"] = False
+                st.session_state["show_detail"] = True
                 st.success("患者保存成功")
                 st.rerun()
+
             except ValueError as e:
                 st.error(str(e))
             except Exception as e:
@@ -679,35 +559,267 @@ def new_patient_panel():
 
 
 def page_patients():
-    hero("患者管理","新增、搜索、筛选并进入患者详情")
-    boundary(); new_patient_panel()
-    ps=list_patients()
+    # 页面局部样式：只影响患者管理页，让页面更接近简洁后台界面
+    st.markdown(
+        """
+        <style>
+        .patient-page-top{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:16px;
+            padding:18px 22px;
+            margin:2px 0 18px 0;
+            background:linear-gradient(135deg,#ffffff 0%,#f8fbff 100%);
+            border:1px solid #e3edf5;
+            border-radius:22px;
+            box-shadow:0 12px 30px rgba(31,50,74,.06);
+        }
+        .patient-page-title{
+            margin:0;
+            color:#10233d;
+            font-size:30px;
+            line-height:1.15;
+            font-weight:950;
+            letter-spacing:.3px;
+        }
+        .patient-page-sub{
+            margin-top:6px;
+            color:#667085;
+            font-size:14px;
+            font-weight:700;
+        }
+        .patient-toolbar{
+            padding:14px 16px 6px 16px;
+            margin:4px 0 16px 0;
+            background:#ffffff;
+            border:1px solid #e3edf5;
+            border-radius:20px;
+            box-shadow:0 10px 24px rgba(31,50,74,.045);
+        }
+        .patient-table-wrap{
+            padding:16px 18px 6px 18px;
+            background:#ffffff;
+            border:1px solid #e3edf5;
+            border-radius:22px;
+            box-shadow:0 14px 34px rgba(31,50,74,.06);
+            margin-top:10px;
+        }
+        .patient-table-head{
+            color:#53657d;
+            font-size:13px;
+            font-weight:900;
+            padding:6px 0 8px 0;
+            border-bottom:1px solid #e9f0f6;
+        }
+        .patient-row{
+            padding:5px 0;
+            border-bottom:1px solid #edf2f7;
+            color:#22344d;
+            font-size:14px;
+        }
+        .patient-row-muted{
+            color:#667085;
+            font-size:13px;
+        }
+        .patient-link-note{
+            color:#667085;
+            font-size:12px;
+            margin-top:-4px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 读取患者列表
+    ps = list_patients()
+
+    # 顶部区域：小标题 + 右上角新增患者按钮
+    st.markdown(
+        """
+        <div class="patient-page-top">
+            <div>
+                <div class="patient-page-title">患者管理</div>
+                <div class="patient-page-sub">新增、搜索、筛选并快速进入患者详情或复诊</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    top_action_left, top_action_right = st.columns([6, 1.2])
+    with top_action_left:
+        st.write("")
+    with top_action_right:
+        if st.button("＋ 新增患者", key="top_add_patient_btn", use_container_width=True):
+            st.session_state["open_new_patient_panel"] = True
+            st.rerun()
+
+    # 新增患者面板
+    new_patient_panel()
+
+    # 空数据提示
     if not ps:
         st.info("暂无患者，请先新增患者。")
         return
-    diabetes=sum("糖尿病" in safe_tags(p) or "血糖异常" in safe_tags(p) for p in ps)
-    lipid=sum("高脂血症" in safe_tags(p) or "血脂异常" in safe_tags(p) for p in ps)
-    key_follow=sum("重点复诊" in safe_tags(p) for p in ps)
-    stat_grid([("患者总数",len(ps),"当前已建档患者"),("血糖相关",diabetes,"糖尿病或血糖异常"),("血脂相关",lipid,"高脂血症或血脂异常"),("重点复诊",key_follow,"需要重点随访")])
-    section("患者检索与筛选")
-    q=st.text_input("搜索患者", placeholder="姓名 / 手机号 / 患者编号"); tf=st.multiselect("标签筛选",TAGS, placeholder="请选择标签")
-    rows=[]
+
+    # 顶部统计卡片
+    diabetes = sum("糖尿病" in safe_tags(p) or "血糖异常" in safe_tags(p) for p in ps)
+    lipid = sum("高脂血症" in safe_tags(p) or "血脂异常" in safe_tags(p) for p in ps)
+    key_follow = sum("重点复诊" in safe_tags(p) for p in ps)
+
+    stat_grid([
+        ("患者总数", len(ps), "当前已建档患者"),
+        ("血糖相关", diabetes, "糖尿病或血糖异常"),
+        ("血脂相关", lipid, "高脂血症或血脂异常"),
+        ("重点复诊", key_follow, "需要重点随访")
+    ])
+
+    # 简洁搜索工具栏
+    st.markdown('<div class="patient-toolbar">', unsafe_allow_html=True)
+    filter_col1, filter_col2, filter_col3 = st.columns([1.8, 1.2, 0.55])
+
+    with filter_col1:
+        q = st.text_input(
+            "搜索患者",
+            placeholder="搜索姓名 / 手机 / 编号",
+            key="patient_search_input",
+            label_visibility="collapsed"
+        )
+
+    with filter_col2:
+        tf = st.multiselect(
+            "标签筛选",
+            TAGS,
+            placeholder="请选择标签",
+            key="patient_tag_filter",
+            label_visibility="collapsed"
+        )
+
+    with filter_col3:
+        if st.button("刷新", key="patient_refresh_btn", use_container_width=True):
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 整理筛选后的患者数据
+    rows = []
     for p in ps:
-        tags=safe_tags(p)
-        if q and q not in str(p.get("name","")) and q not in str(p.get("phone","")) and q not in str(p.get("patient_code","")): continue
-        if tf and not all(t in tags for t in tf): continue
-        rel=related(p["patient_id"]); visits=rel.get("visits",[])
-        lv=sorted(visits,key=lambda x:str(x.get("visit_date") or ""), reverse=True)[0] if visits else {}
-        rows.append({"patient_id":p["patient_id"],"编号":p.get("patient_code"),"姓名":p.get("name"),"性别":p.get("sex"),"年龄":p.get("age"),"手机号":p.get("phone"),"初诊日期":p.get("first_visit_date"),"最近复诊":lv.get("visit_date"),"最近体重":lv.get("weight_kg"),"最近体重指数":bmi(lv.get("weight_kg"),p.get("height_cm")) if lv else None,"主要诊断":p.get("main_diagnosis"),"标签":"、".join(tags)})
+        tags = safe_tags(p)
+
+        if q:
+            q_text = str(q).strip()
+            if (
+                q_text not in str(p.get("name", "")) and
+                q_text not in str(p.get("phone", "")) and
+                q_text not in str(p.get("patient_code", ""))
+            ):
+                continue
+
+        if tf and not all(t in tags for t in tf):
+            continue
+
+        rel = related(p["patient_id"])
+        visits = rel.get("visits", [])
+        lv = sorted(
+            visits,
+            key=lambda x: str(x.get("visit_date") or ""),
+            reverse=True
+        )[0] if visits else {}
+
+        rows.append({
+            "patient_id": p["patient_id"],
+            "编号": p.get("patient_code") or "",
+            "姓名": p.get("name") or "",
+            "性别": p.get("sex") or "",
+            "年龄": p.get("age") or "",
+            "手机号": p.get("phone") or "—",
+            "初诊日期": p.get("first_visit_date") or "",
+            "最近复诊": lv.get("visit_date") or "",
+            "最近体重": lv.get("weight_kg") or "",
+            "最近体重指数": bmi(lv.get("weight_kg"), p.get("height_cm")) if lv else None,
+            "主要诊断": p.get("main_diagnosis") or "",
+            "标签": "、".join(tags)
+        })
+
+    rows = sorted(
+        rows,
+        key=lambda x: str(x.get("最近复诊") or x.get("初诊日期") or ""),
+        reverse=True
+    )
+
+    # 患者列表
     section("患者列表")
-    df=pd.DataFrame(rows); st.dataframe(df.drop(columns=["patient_id"]) if not df.empty else df, use_container_width=True, hide_index=True)
-    if rows:
-        labels=[f"{r['编号']}｜{r['姓名']}｜{r['性别']}｜{r['年龄']}岁" for r in rows]; label=st.selectbox("选择患者",labels)
-        pid=rows[labels.index(label)]["patient_id"]
-        c1,c2=st.columns(2)
-        if c1.button("查看详情", use_container_width=True): st.session_state["patient_id"]=pid; st.session_state["show_detail"]=True; st.rerun()
-        if c2.button("删除该患者（软删除）", use_container_width=True): soft_delete_patient(pid); st.rerun()
-    if st.session_state.get("show_detail") and st.session_state.get("patient_id"): st.divider(); patient_detail(st.session_state["patient_id"])
+
+    if not rows:
+        st.warning("没有符合当前筛选条件的患者。")
+        return
+
+    st.markdown('<div class="patient-table-wrap">', unsafe_allow_html=True)
+
+    list_left, list_right = st.columns([4, 1])
+    with list_left:
+        st.caption("点击患者姓名进入详情；点击“复诊”直接进入今日复诊。")
+    with list_right:
+        st.caption(f"共 {len(rows)} 条")
+
+    # 表头
+    h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12 = st.columns(
+        [1.05, 0.95, 0.48, 0.48, 1.15, 0.95, 0.95, 0.8, 0.9, 1.25, 1.45, 0.95]
+    )
+
+    h1.markdown('<div class="patient-table-head">编号</div>', unsafe_allow_html=True)
+    h2.markdown('<div class="patient-table-head">姓名</div>', unsafe_allow_html=True)
+    h3.markdown('<div class="patient-table-head">性别</div>', unsafe_allow_html=True)
+    h4.markdown('<div class="patient-table-head">年龄</div>', unsafe_allow_html=True)
+    h5.markdown('<div class="patient-table-head">手机号</div>', unsafe_allow_html=True)
+    h6.markdown('<div class="patient-table-head">初诊日期</div>', unsafe_allow_html=True)
+    h7.markdown('<div class="patient-table-head">最近复诊</div>', unsafe_allow_html=True)
+    h8.markdown('<div class="patient-table-head">体重</div>', unsafe_allow_html=True)
+    h9.markdown('<div class="patient-table-head">体重指数</div>', unsafe_allow_html=True)
+    h10.markdown('<div class="patient-table-head">主要诊断</div>', unsafe_allow_html=True)
+    h11.markdown('<div class="patient-table-head">标签</div>', unsafe_allow_html=True)
+    h12.markdown('<div class="patient-table-head">操作</div>', unsafe_allow_html=True)
+
+    # 表格行
+    for r in rows:
+        c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12 = st.columns(
+            [1.05, 0.95, 0.48, 0.48, 1.15, 0.95, 0.95, 0.8, 0.9, 1.25, 1.45, 0.95]
+        )
+
+        c1.markdown(f"<div class='patient-row'>{r['编号']}</div>", unsafe_allow_html=True)
+
+        # 患者姓名作为可点击入口
+        if c2.button(r["姓名"], key=f"open_patient_{r['patient_id']}", use_container_width=True):
+            st.session_state["patient_id"] = r["patient_id"]
+            st.session_state["show_detail"] = True
+            st.session_state["quick_action"] = None
+            st.rerun()
+
+        c3.markdown(f"<div class='patient-row'>{r['性别']}</div>", unsafe_allow_html=True)
+        c4.markdown(f"<div class='patient-row'>{r['年龄']}</div>", unsafe_allow_html=True)
+        c5.markdown(f"<div class='patient-row'>{r['手机号']}</div>", unsafe_allow_html=True)
+        c6.markdown(f"<div class='patient-row'>{r['初诊日期']}</div>", unsafe_allow_html=True)
+        c7.markdown(f"<div class='patient-row'>{r['最近复诊']}</div>", unsafe_allow_html=True)
+        c8.markdown(f"<div class='patient-row'>{'' if r['最近体重'] in [None, ''] else fmt(r['最近体重'])}</div>", unsafe_allow_html=True)
+        c9.markdown(f"<div class='patient-row'>{'' if r['最近体重指数'] in [None, ''] else fmt(r['最近体重指数'])}</div>", unsafe_allow_html=True)
+        c10.markdown(f"<div class='patient-row'>{r['主要诊断']}</div>", unsafe_allow_html=True)
+        c11.markdown(f"<div class='patient-row-muted'>{r['标签']}</div>", unsafe_allow_html=True)
+
+        # 复诊按钮
+        if c12.button("复诊", key=f"quick_visit_from_list_{r['patient_id']}", use_container_width=True):
+            st.session_state["patient_id"] = r["patient_id"]
+            st.session_state["show_detail"] = True
+            st.session_state["quick_action"] = "visit"
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 下方直接展示患者详情，不再使用“选择患者”下拉框和大按钮
+    if st.session_state.get("show_detail") and st.session_state.get("patient_id"):
+        st.divider()
+        patient_detail(st.session_state["patient_id"])
+
 
 def visit_form(p, v=None, form_suffix='', show_extended_fields=True):
     v=v or {}
@@ -1150,22 +1262,14 @@ def page_settings():
     hero("系统设置","部署状态、医学边界和配置检查"); boundary(); st.write("云数据库连接状态：", "已连接" if ok() else "未连接"); st.markdown("部署步骤：执行建表文件 → 创建云端文件柜 → 上传代码仓库 → 在线平台选择主程序文件 → 填写密钥 → 发布。")
 
 def main():
-    if not require_login():
-        return
+    if not require_login(): return
     stop_if_unconfigured()
-
-    left_col, main_col = st.columns([0.18, 0.82], gap="large")
-    with left_col:
-        page = render_left_navigation()
-
-    with main_col:
-        if page == "患者管理":
-            page_patients()
-        elif page == "趋势分析":
-            page_trends()
-        elif page == "导出与备份":
-            page_export()
-        else:
-            page_settings()
+    render_sidebar_brand()
+    page=st.sidebar.radio("功能导航",["患者管理","趋势分析","导出与备份","系统设置"],label_visibility="collapsed")
+    logout()
+    if page=="患者管理": page_patients()
+    elif page=="趋势分析": page_trends()
+    elif page=="导出与备份": page_export()
+    else: page_settings()
 
 if __name__=="__main__": main()
