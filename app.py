@@ -683,36 +683,153 @@ def new_patient_panel():
                     st.error("保存失败：数据库写入异常。请检查患者编号是否重复、建表文件是否完整执行。")
 
 
+
+def build_patient_rows(search_text="", tag_filter=None):
+    """构建患者列表行。用于首页和患者管理页共用，避免重复逻辑。"""
+    ps = list_patients()
+    rows = []
+    tag_filter = tag_filter or []
+    for p in ps:
+        tags = safe_tags(p)
+        if search_text and search_text not in str(p.get("name","")) and search_text not in str(p.get("phone","")) and search_text not in str(p.get("patient_code","")):
+            continue
+        if tag_filter and not all(t in tags for t in tag_filter):
+            continue
+        rel = related(p["patient_id"])
+        visits = active_rows(rel.get("visits", []))
+        lv = sorted(visits, key=lambda x: str(x.get("visit_date") or ""), reverse=True)[0] if visits else {}
+        weight = lv.get("weight_kg") or p.get("initial_weight_kg")
+        rows.append({
+            "patient_id": p["patient_id"],
+            "编号": p.get("patient_code"),
+            "姓名": p.get("name"),
+            "性别": p.get("sex"),
+            "年龄": p.get("age"),
+            "手机号": p.get("phone") or "—",
+            "初诊日期": p.get("first_visit_date"),
+            "最近复诊": lv.get("visit_date") or "—",
+            "体重": weight,
+            "体重指数": bmi(weight, p.get("height_cm")),
+            "主要诊断": p.get("main_diagnosis"),
+            "标签": "、".join(tags)
+        })
+    return rows
+
+def open_patient_detail(patient_id, quick_action=None, origin="home"):
+    """进入独立患者详情界面。"""
+    st.session_state["patient_id"] = patient_id
+    st.session_state["detail_patient_id"] = patient_id
+    st.session_state["detail_origin"] = origin
+    st.session_state["show_detail"] = True
+    if quick_action:
+        st.session_state["quick_action"] = quick_action
+    else:
+        st.session_state.pop("quick_action", None)
+    st.rerun()
+
+def render_patient_detail_page(origin_label="首页"):
+    """独立患者详情页，不再嵌在患者列表下方。"""
+    c1, c2 = st.columns([1, 5])
+    if c1.button(f"← 返回{origin_label}", use_container_width=True, key=f"back_to_{origin_label}"):
+        st.session_state.pop("detail_patient_id", None)
+        st.session_state["show_detail"] = False
+        st.session_state.pop("quick_action", None)
+        st.rerun()
+    patient_detail(st.session_state.get("detail_patient_id") or st.session_state.get("patient_id"))
+
+def page_home():
+    """简洁首页：只负责快速查找患者、进入详情或复诊。"""
+    if st.session_state.get("show_detail") and st.session_state.get("detail_patient_id") and st.session_state.get("detail_origin") == "home":
+        render_patient_detail_page("首页")
+        return
+
+    hero("首页","快速查找患者，并进入患者详情或今日复诊")
+    ps = list_patients()
+    if not ps:
+        st.info("暂无患者。请进入“患者管理”新增患者。")
+        if st.button("前往患者管理", use_container_width=True):
+            st.session_state["force_page_hint"] = "患者管理"
+        return
+
+    diabetes = sum("糖尿病" in safe_tags(p) or "血糖异常" in safe_tags(p) for p in ps)
+    lipid = sum("高脂血症" in safe_tags(p) or "血脂异常" in safe_tags(p) for p in ps)
+    key_follow = sum("重点复诊" in safe_tags(p) for p in ps)
+    stat_grid([
+        ("患者总数", len(ps), "当前已建档患者"),
+        ("血糖相关", diabetes, "糖尿病或血糖异常"),
+        ("血脂相关", lipid, "高脂血症或血脂异常"),
+        ("重点复诊", key_follow, "需要重点随访")
+    ])
+
+    section("快速查找")
+    q = st.text_input("搜索患者", placeholder="输入姓名 / 手机号 / 患者编号", key="home_search_patient")
+    tf = st.multiselect("标签筛选", TAGS, placeholder="请选择标签", key="home_tag_filter")
+    rows = build_patient_rows(q, tf)
+
+    if not rows:
+        st.info("没有匹配的患者。")
+        return
+
+    section("患者快速入口")
+    df = pd.DataFrame(rows)
+    show_cols = ["编号","姓名","性别","年龄","最近复诊","体重","体重指数","主要诊断","标签"]
+    st.dataframe(df[show_cols], use_container_width=True, hide_index=True)
+
+    labels = [f"{r['编号']}｜{r['姓名']}｜{r['性别']}｜{r['年龄']}岁｜最近复诊：{r['最近复诊']}" for r in rows]
+    label = st.selectbox("选择患者", labels, key="home_select_patient")
+    pid = rows[labels.index(label)]["patient_id"]
+
+    c1, c2 = st.columns(2)
+    if c1.button("进入患者详情", use_container_width=True, key="home_open_detail"):
+        open_patient_detail(pid, origin="home")
+    if c2.button("进入今日复诊", use_container_width=True, key="home_open_today_visit"):
+        open_patient_detail(pid, quick_action="visit", origin="home")
+
+
 def page_patients():
-    hero("患者管理","新增、搜索、筛选并进入患者详情")
-    boundary(); new_patient_panel()
-    ps=list_patients()
+    """患者管理：新增、筛选、维护患者；患者详情作为独立界面打开。"""
+    if st.session_state.get("show_detail") and st.session_state.get("detail_patient_id") and st.session_state.get("detail_origin") == "manage":
+        render_patient_detail_page("患者管理")
+        return
+
+    hero("患者管理","用于新增患者、维护患者资料、检索患者和进入详情")
+    boundary()
+    new_patient_panel()
+
+    ps = list_patients()
     if not ps:
         st.info("暂无患者，请先新增患者。")
         return
-    diabetes=sum("糖尿病" in safe_tags(p) or "血糖异常" in safe_tags(p) for p in ps)
-    lipid=sum("高脂血症" in safe_tags(p) or "血脂异常" in safe_tags(p) for p in ps)
-    key_follow=sum("重点复诊" in safe_tags(p) for p in ps)
-    stat_grid([("患者总数",len(ps),"当前已建档患者"),("血糖相关",diabetes,"糖尿病或血糖异常"),("血脂相关",lipid,"高脂血症或血脂异常"),("重点复诊",key_follow,"需要重点随访")])
+
     section("患者检索与筛选")
-    q=st.text_input("搜索患者", placeholder="姓名 / 手机号 / 患者编号"); tf=st.multiselect("标签筛选",TAGS, placeholder="请选择标签")
-    rows=[]
-    for p in ps:
-        tags=safe_tags(p)
-        if q and q not in str(p.get("name","")) and q not in str(p.get("phone","")) and q not in str(p.get("patient_code","")): continue
-        if tf and not all(t in tags for t in tf): continue
-        rel=related(p["patient_id"]); visits=rel.get("visits",[])
-        lv=sorted(visits,key=lambda x:str(x.get("visit_date") or ""), reverse=True)[0] if visits else {}
-        rows.append({"patient_id":p["patient_id"],"编号":p.get("patient_code"),"姓名":p.get("name"),"性别":p.get("sex"),"年龄":p.get("age"),"手机号":p.get("phone"),"初诊日期":p.get("first_visit_date"),"最近复诊":lv.get("visit_date"),"最近体重":lv.get("weight_kg"),"最近体重指数":bmi(lv.get("weight_kg"),p.get("height_cm")) if lv else None,"主要诊断":p.get("main_diagnosis"),"标签":"、".join(tags)})
+    q = st.text_input("搜索患者", placeholder="姓名 / 手机号 / 患者编号", key="manage_search_patient")
+    tf = st.multiselect("标签筛选", TAGS, placeholder="请选择标签", key="manage_tag_filter")
+    rows = build_patient_rows(q, tf)
+
     section("患者列表")
-    df=pd.DataFrame(rows); st.dataframe(df.drop(columns=["patient_id"]) if not df.empty else df, use_container_width=True, hide_index=True)
-    if rows:
-        labels=[f"{r['编号']}｜{r['姓名']}｜{r['性别']}｜{r['年龄']}岁" for r in rows]; label=st.selectbox("选择患者",labels)
-        pid=rows[labels.index(label)]["patient_id"]
-        c1,c2=st.columns(2)
-        if c1.button("查看详情", use_container_width=True): st.session_state["patient_id"]=pid; st.session_state["show_detail"]=True; st.rerun()
-        if c2.button("删除该患者（软删除）", use_container_width=True): soft_delete_patient(pid); st.rerun()
-    if st.session_state.get("show_detail") and st.session_state.get("patient_id"): st.divider(); patient_detail(st.session_state["patient_id"])
+    if not rows:
+        st.info("没有匹配的患者。")
+        return
+
+    df = pd.DataFrame(rows)
+    show_cols = ["编号","姓名","性别","年龄","手机号","初诊日期","最近复诊","体重","体重指数","主要诊断","标签"]
+    st.dataframe(df[show_cols], use_container_width=True, hide_index=True)
+
+    labels = [f"{r['编号']}｜{r['姓名']}｜{r['性别']}｜{r['年龄']}岁" for r in rows]
+    label = st.selectbox("选择要操作的患者", labels, key="manage_select_patient")
+    pid = rows[labels.index(label)]["patient_id"]
+
+    c1, c2, c3 = st.columns(3)
+    if c1.button("进入患者详情", use_container_width=True, key="manage_open_detail"):
+        open_patient_detail(pid, origin="manage")
+    if c2.button("进入今日复诊", use_container_width=True, key="manage_open_today_visit"):
+        open_patient_detail(pid, quick_action="visit", origin="manage")
+    if c3.button("删除该患者（软删除）", use_container_width=True, key="manage_soft_delete_patient"):
+        soft_delete_patient(pid)
+        st.success("已将该患者标记为删除。")
+        st.rerun()
+
+
 
 def visit_form(p, v=None, form_suffix='', show_extended_fields=True):
     v=v or {}
@@ -1195,13 +1312,15 @@ def main():
     render_sidebar_brand()
     page = st.sidebar.radio(
         "功能导航",
-        ["患者管理", "趋势分析", "导出与备份", "系统设置"],
+        ["首页", "患者管理", "趋势分析", "导出与备份", "系统设置"],
         label_visibility="visible",
         key="fixed_sidebar_navigation"
     )
     logout()
 
-    if page == "患者管理":
+    if page == "首页":
+        page_home()
+    elif page == "患者管理":
         page_patients()
     elif page == "趋势分析":
         page_trends()
