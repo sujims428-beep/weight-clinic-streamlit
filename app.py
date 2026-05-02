@@ -222,6 +222,83 @@ def current_med_names(meds):
     return [f"{m.get('medicine_name','')} {m.get('dose','')} {m.get('frequency','')}" for m in current_medications(meds)]
 
 
+def devine_standard_weight(sex, height_cm):
+    """Devine 标准体重/理想体重估算，只需性别和身高。"""
+    try:
+        h = float(height_cm)
+    except Exception:
+        return None
+    if not h or h <= 0:
+        return None
+    if sex == "男":
+        return 50 + 0.91 * (h - 152.4)
+    if sex == "女":
+        return 45.5 + 0.91 * (h - 152.4)
+    return None
+
+def bmi_body_fat_percent(sex, age, weight_kg, height_cm):
+    """Deurenberg 体重指数法体脂率估算，只需性别、年龄、身高、体重。"""
+    b = bmi(weight_kg, height_cm)
+    try:
+        age_value = float(age)
+        sex_value = 1 if sex == "男" else 0
+        b_value = float(b)
+    except Exception:
+        return None
+    return 1.20 * b_value + 0.23 * age_value - 10.8 * sex_value - 5.4
+
+def medical_formula_values(patient, rel=None):
+    """汇总当前医学计算公式结果。"""
+    rel = rel or related(patient["patient_id"])
+    visits = rel.get("visits", [])
+    latest_visit = sorted(visits, key=lambda x: str(x.get("visit_date") or ""), reverse=True)[0] if visits else {}
+    current_weight = latest_visit.get("weight_kg") or patient.get("initial_weight_kg")
+    height = patient.get("height_cm")
+    sex = patient.get("sex")
+    age = patient.get("age")
+
+    current_bmi = bmi(current_weight, height)
+    bf_bmi = bmi_body_fat_percent(sex, age, current_weight, height)
+    standard_weight = devine_standard_weight(sex, height)
+
+    diff = None
+    try:
+        if current_weight is not None and standard_weight is not None:
+            diff = float(current_weight) - float(standard_weight)
+    except Exception:
+        diff = None
+
+    return {
+        "current_weight": current_weight,
+        "bmi": current_bmi,
+        "body_fat_percent_bmi": bf_bmi,
+        "devine_standard_weight": standard_weight,
+        "weight_minus_standard": diff,
+    }
+
+def render_medical_formula_card(patient, rel=None):
+    """在患者详情页显示医学计算公式参考，不增加任何输入。"""
+    vals = medical_formula_values(patient, rel)
+    section("医学计算公式参考")
+    st.caption("以下结果由系统根据当前已有的性别、年龄、身高、体重自动计算；不需要额外录入颈围。")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("当前体重指数", fmt(vals.get("bmi")))
+    c2.metric("体重指数法体脂率", f"{fmt(vals.get('body_fat_percent_bmi'))}%")
+    c3.metric("Devine标准体重", f"{fmt(vals.get('devine_standard_weight'))} 千克")
+    c4.metric("较标准体重差值", f"{fmt(vals.get('weight_minus_standard'))} 千克")
+    st.markdown(
+        """
+        <div class="boundary">
+        公式来源：体脂率采用 Deurenberg 等提出的体重指数法成人体脂率估算公式；
+        标准体重采用 Devine 理想体重公式。以上均为估算值，仅用于门诊沟通和同一方法下趋势参考，
+        不等同于人体成分分析仪、双能X线吸收法或其他专业检测结果，不作为自动诊断或自动开药依据。
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+
 def render_medication_quick_panel(patient, meds_all, prefix="medquick"):
     """当前用药快捷交互：新增、调整、停用、删除误录。"""
     current_meds = current_medications(meds_all)
@@ -508,7 +585,21 @@ def new_patient_panel():
             weight=h.number_input("初诊体重（千克）",0.0,value=80.0)
 
             lo,hi,mid=ideal_weight(height)
-            st.info(f"当前体重指数：{fmt(bmi(weight,height))}；目标体重参考：{fmt(lo)}–{fmt(hi)} 千克")
+            devine_wt = devine_standard_weight(sex, height)
+            bf_percent = bmi_body_fat_percent(sex, age, weight, height)
+            weight_diff = None
+            try:
+                if devine_wt is not None:
+                    weight_diff = float(weight) - float(devine_wt)
+            except Exception:
+                weight_diff = None
+            st.info(
+                f"当前体重指数：{fmt(bmi(weight,height))}；"
+                f"体重指数法体脂率：{fmt(bf_percent)}%；"
+                f"Devine标准体重：{fmt(devine_wt)} 千克；"
+                f"较标准体重差值：{fmt(weight_diff)} 千克；"
+                f"目标体重参考：{fmt(lo)}–{fmt(hi)} 千克"
+            )
 
             target=st.number_input("目标体重（千克）",0.0,value=float(mid or 65))
             diag=st.text_input("主要诊断/主要问题","肥胖/体重管理")
@@ -658,6 +749,7 @@ def patient_detail(pid=None):
     hero("患者详情","患者随访、用药、舌脉、辅助检查与报告管理")
     patient_header(p)
     cards(p,rel)
+    render_medical_formula_card(p, rel)
 
     section("快捷操作")
     q1,q2,q3,q4=st.columns(4)
@@ -987,6 +1079,7 @@ def page_trends():
     raw_rel=related(p["patient_id"])
     rel={k: active_rows(v) if isinstance(v, list) else v for k, v in raw_rel.items()}
     cards(p,rel)
+    render_medical_formula_card(p, rel)
     visits=pd.DataFrame(rel.get("visits",[])); est=pd.DataFrame(rel.get("estimates",[])); labs=pd.DataFrame(rel.get("labs",[]))
     def make_line(df,x,y,title,ytitle,ideal_value=None,ideal_label="参考目标线"):
         plot_df = df.copy()
