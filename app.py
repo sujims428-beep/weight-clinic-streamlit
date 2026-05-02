@@ -55,6 +55,27 @@ st.set_page_config(page_title="减重门诊管理系统（逢安堂）", page_ic
 css()
 
 
+# v3.19：患者列表改为行内直接操作，压缩按钮与分隔线间距。
+st.markdown("""
+<style>
+div[data-testid="stHorizontalBlock"]{
+    gap:0.65rem !important;
+}
+div[data-testid="stButton"] > button{
+    min-height:34px !important;
+    padding:0.25rem 0.6rem !important;
+    border-radius:12px !important;
+    font-weight:750 !important;
+}
+hr{
+    margin-top:0.35rem !important;
+    margin-bottom:0.35rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+
 # v3.18：强制压缩页面顶部空白；适用于患者管理、趋势分析等所有页面。
 st.markdown("""
 <style>
@@ -945,23 +966,38 @@ def page_patients():
         st.info("没有匹配的患者。")
         return
 
-    df = pd.DataFrame(rows)
-    show_cols = ["编号","姓名","性别","年龄","手机号","初诊日期","最近复诊","体重","体重指数","主要诊断","标签"]
-    st.dataframe(df[show_cols], use_container_width=True, hide_index=True)
+    st.caption(f"共 {len(rows)} 条。每一行右侧可直接进入详情、今日复诊或软删除。")
 
-    labels = [f"{r['编号']}｜{r['姓名']}｜{r['性别']}｜{r['年龄']}岁" for r in rows]
-    label = st.selectbox("选择要操作的患者", labels, key="manage_select_patient")
-    pid = rows[labels.index(label)]["patient_id"]
+    header_cols = st.columns([1.0, 1.0, 0.55, 0.55, 1.15, 1.0, 1.0, 0.75, 0.8, 1.55, 1.55, 0.72, 0.72, 0.72])
+    headers = ["编号","姓名","性别","年龄","手机号","初诊日期","最近复诊","体重","体重指数","主要诊断","标签","详情","复诊","删除"]
+    for col, h in zip(header_cols, headers):
+        col.markdown(f"**{h}**")
 
-    c1, c2, c3 = st.columns(3)
-    if c1.button("进入患者详情", use_container_width=True, key="manage_open_detail"):
-        open_patient_detail(pid, origin="manage")
-    if c2.button("进入今日复诊", use_container_width=True, key="manage_open_today_visit"):
-        open_patient_detail(pid, quick_action="visit", origin="manage")
-    if c3.button("删除该患者（软删除）", use_container_width=True, key="manage_soft_delete_patient"):
-        soft_delete_patient(pid)
-        st.success("已将该患者标记为删除。")
-        st.rerun()
+    for r in rows:
+        pid = r["patient_id"]
+        row_cols = st.columns([1.0, 1.0, 0.55, 0.55, 1.15, 1.0, 1.0, 0.75, 0.8, 1.55, 1.55, 0.72, 0.72, 0.72])
+        row_cols[0].write(r.get("编号") or "—")
+        row_cols[1].write(r.get("姓名") or "—")
+        row_cols[2].write(r.get("性别") or "—")
+        row_cols[3].write(r.get("年龄") or "—")
+        row_cols[4].write(r.get("手机号") or "—")
+        row_cols[5].write(r.get("初诊日期") or "—")
+        row_cols[6].write(r.get("最近复诊") or "—")
+        row_cols[7].write(fmt(r.get("体重")))
+        row_cols[8].write(fmt(r.get("体重指数")))
+        row_cols[9].write(r.get("主要诊断") or "—")
+        row_cols[10].write(r.get("标签") or "—")
+
+        if row_cols[11].button("详情", use_container_width=True, key=f"manage_row_detail_{pid}"):
+            open_patient_detail(pid, origin="manage")
+        if row_cols[12].button("复诊", use_container_width=True, key=f"manage_row_visit_{pid}"):
+            open_patient_detail(pid, quick_action="visit", origin="manage")
+        if row_cols[13].button("删除", use_container_width=True, key=f"manage_row_delete_{pid}"):
+            soft_delete_patient(pid)
+            st.success("已将该患者标记为删除。")
+            st.rerun()
+
+        st.divider()
 
 
 
