@@ -989,10 +989,41 @@ def page_trends():
     cards(p,rel)
     visits=pd.DataFrame(rel.get("visits",[])); est=pd.DataFrame(rel.get("estimates",[])); labs=pd.DataFrame(rel.get("labs",[]))
     def make_line(df,x,y,title,ytitle,ideal_value=None,ideal_label="参考目标线"):
-        fig=px.line(df,x=x,y=y,markers=True,title=title,labels={x:"日期",y:ytitle})
-        fig.update_traces(line=dict(width=3,color="#14a39a"),marker=dict(size=8,color="#14a39a"))
+        plot_df = df.copy()
+        plot_df[y] = pd.to_numeric(plot_df[y], errors="coerce")
+        plot_df = plot_df.dropna(subset=[x, y])
+        if plot_df.empty:
+            st.info(f"{title}暂无可绘制数据。")
+            return
+        plot_df["_数据标签"] = plot_df[y].map(lambda v: fmt(v))
+        fig=px.line(
+            plot_df,
+            x=x,
+            y=y,
+            markers=True,
+            text="_数据标签",
+            title=title,
+            labels={x:"日期",y:ytitle}
+        )
+        fig.update_traces(
+            mode="lines+markers+text",
+            textposition="top center",
+            textfont=dict(size=13,color="#10233d"),
+            cliponaxis=False,
+            line=dict(width=3,color="#14a39a"),
+            marker=dict(size=9,color="#14a39a")
+        )
         add_ideal_line(fig, ideal_value, ideal_label)
-        fig.update_layout(title=dict(font=dict(size=22,color="#10233d")),plot_bgcolor="white",paper_bgcolor="white",font=dict(family="Microsoft YaHei",color="#42526b"),height=390,margin=dict(l=30,r=20,t=60,b=30),hovermode="x unified",showlegend=False)
+        fig.update_layout(
+            title=dict(font=dict(size=22,color="#10233d")),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            font=dict(family="Microsoft YaHei",color="#42526b"),
+            height=430,
+            margin=dict(l=36,r=28,t=72,b=42),
+            hovermode="x unified",
+            showlegend=False
+        )
         fig.update_xaxes(title_text="日期",gridcolor="#eef2f7",tickformat="%Y-%m-%d")
         fig.update_yaxes(title_text=ytitle,gridcolor="#eef2f7")
         chart_open(); st.plotly_chart(fig,use_container_width=True, config={"displayModeBar": False}); chart_close()
