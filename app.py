@@ -55,6 +55,78 @@ st.set_page_config(page_title="减重门诊管理系统（逢安堂）", page_ic
 css()
 
 
+# v3.18：强制压缩页面顶部空白；适用于患者管理、趋势分析等所有页面。
+st.markdown("""
+<style>
+/* 隐藏 Streamlit 顶部空白栏 */
+header[data-testid="stHeader"]{
+    height:0 !important;
+    min-height:0 !important;
+    display:none !important;
+    visibility:hidden !important;
+}
+[data-testid="stToolbar"]{
+    display:none !important;
+    visibility:hidden !important;
+}
+#MainMenu, footer{
+    display:none !important;
+    visibility:hidden !important;
+}
+
+/* 关键修复：新版 Streamlit 主体容器不是稳定的 .main .block-container，所以必须直接写 .block-container */
+.block-container{
+    padding-top:0.35rem !important;
+    padding-bottom:1.5rem !important;
+    margin-top:0 !important;
+    max-width:1320px !important;
+}
+
+/* 避免仅用于注入 CSS 的 markdown 容器占据可见空间 */
+.element-container:has(style){
+    display:none !important;
+    height:0 !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+}
+[data-testid="stMarkdownContainer"]:has(style){
+    display:none !important;
+    height:0 !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+}
+
+/* 进一步压缩标题、控件与表格之间的垂直距离 */
+.compact-header{
+    padding:10px 16px !important;
+    margin:0 0 10px 0 !important;
+    border-radius:16px !important;
+}
+.compact-header-title{
+    font-size:26px !important;
+    line-height:1.15 !important;
+}
+.compact-header-subtitle{
+    font-size:13px !important;
+    margin-top:3px !important;
+}
+div[data-testid="stExpander"]{
+    margin-top:2px !important;
+    margin-bottom:8px !important;
+}
+div[data-testid="stTextInput"],
+div[data-testid="stMultiSelect"],
+div[data-testid="stSelectbox"]{
+    margin-top:0 !important;
+    margin-bottom:2px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+
 # v3.13：恢复原生 Streamlit 侧边栏，保持固定在左侧，不再输出自定义 HTML 菜单。
 st.markdown("""
 <style>
@@ -1252,7 +1324,7 @@ def patient_detail(pid=None):
                 st.error("保存失败：请检查患者编号是否与其他患者重复，或稍后重试。")
 
 def page_trends():
-    hero("趋势分析","体重、腰围、体重指数、体成分估算与检验指标趋势")
+    compact_header("趋势分析", "体重、腰围、体重指数、体成分估算与检验指标趋势")
     p=choose_patient(); 
     if not p: return
     raw_rel=related(p["patient_id"])
