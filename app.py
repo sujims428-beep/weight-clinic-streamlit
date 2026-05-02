@@ -298,6 +298,69 @@ def render_medical_formula_card(patient, rel=None):
     )
 
 
+def compact_header(title, subtitle=""):
+    """紧凑标题：替代大块 Hero，减少页面顶部空白。"""
+    st.markdown(
+        f"""
+        <div class="compact-header">
+            <div class="compact-header-title">{title}</div>
+            <div class="compact-header-subtitle">{subtitle}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# v3.17：压缩患者管理页顶部空白，降低标题块、输入框和折叠面板占用高度。
+st.markdown("""
+<style>
+.main .block-container{
+    padding-top:1.0rem !important;
+    padding-bottom:2rem !important;
+    max-width:1320px;
+}
+.compact-header{
+    padding:14px 18px;
+    border:1px solid #dcecf5;
+    border-radius:18px;
+    background:linear-gradient(135deg,#eefbf8 0%,#f8fbff 100%);
+    box-shadow:0 8px 24px rgba(15, 118, 110, 0.05);
+    margin:0 0 14px 0;
+}
+.compact-header-title{
+    font-size:30px;
+    line-height:1.2;
+    font-weight:900;
+    color:#10233d;
+    letter-spacing:0.5px;
+}
+.compact-header-subtitle{
+    margin-top:4px;
+    font-size:14px;
+    font-weight:650;
+    color:#64748b;
+}
+div[data-testid="stExpander"]{
+    margin-top:4px !important;
+    margin-bottom:10px !important;
+    border-radius:14px !important;
+}
+div[data-testid="stTextInput"]{
+    margin-bottom:2px !important;
+}
+div[data-testid="stMultiSelect"]{
+    margin-bottom:2px !important;
+}
+div[data-testid="stSelectbox"]{
+    margin-bottom:2px !important;
+}
+[data-testid="stMetric"]{
+    padding:4px 0 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+
 
 def render_medication_quick_panel(patient, meds_all, prefix="medquick"):
     """当前用药快捷交互：新增、调整、停用、删除误录。"""
@@ -792,8 +855,7 @@ def page_patients():
         render_patient_detail_page("患者管理")
         return
 
-    hero("患者管理","用于新增患者、维护患者资料、检索患者和进入详情")
-    boundary()
+    compact_header("患者管理", "新增、维护、检索患者，并快速进入详情或今日复诊")
     new_patient_panel()
 
     ps = list_patients()
@@ -801,7 +863,7 @@ def page_patients():
         st.info("暂无患者，请先新增患者。")
         return
 
-    section("患者检索与筛选")
+    section("检索与筛选")
     q = st.text_input("搜索患者", placeholder="姓名 / 手机号 / 患者编号", key="manage_search_patient")
     tf = st.multiselect("标签筛选", TAGS, placeholder="请选择标签", key="manage_tag_filter")
     rows = build_patient_rows(q, tf)
@@ -1312,15 +1374,13 @@ def main():
     render_sidebar_brand()
     page = st.sidebar.radio(
         "功能导航",
-        ["首页", "患者管理", "趋势分析", "导出与备份", "系统设置"],
+        ["患者管理", "趋势分析", "导出与备份", "系统设置"],
         label_visibility="visible",
         key="fixed_sidebar_navigation"
     )
     logout()
 
-    if page == "首页":
-        page_home()
-    elif page == "患者管理":
+    if page == "患者管理":
         page_patients()
     elif page == "趋势分析":
         page_trends()
