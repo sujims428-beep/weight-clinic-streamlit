@@ -55,6 +55,92 @@ st.set_page_config(page_title="减重门诊管理系统（逢安堂）", page_ic
 css()
 
 
+# v3.20：患者列表改为紧凑卡片式行，统一字体大小，避免表格文字和按钮换行拥挤。
+st.markdown("""
+<style>
+.patient-row-card{
+    background: rgba(255,255,255,0.88);
+    border:1px solid #e2ebf3;
+    border-radius:18px;
+    padding:13px 16px 12px 16px;
+    box-shadow:0 8px 22px rgba(15, 35, 61, 0.045);
+}
+.patient-row-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    margin-bottom:10px;
+}
+.patient-row-name{
+    font-size:18px;
+    font-weight:900;
+    color:#10233d;
+    margin-right:10px;
+}
+.patient-row-code{
+    font-size:13px;
+    font-weight:750;
+    color:#64748b;
+}
+.patient-row-tags{
+    max-width:42%;
+    font-size:12px;
+    font-weight:750;
+    line-height:1.5;
+    color:#0f766e;
+    background:#ecfdf7;
+    border:1px solid #c8f0e3;
+    border-radius:999px;
+    padding:4px 10px;
+    text-align:right;
+}
+.patient-row-grid{
+    display:grid;
+    grid-template-columns: 0.9fr 1.1fr 1fr 1fr 0.9fr 0.9fr 1.6fr;
+    gap:8px 14px;
+    align-items:start;
+}
+.patient-row-grid b{
+    display:block;
+    font-size:11px;
+    color:#7a8aa0;
+    margin-bottom:2px;
+    font-weight:750;
+}
+.patient-row-grid span{
+    font-size:13px;
+    color:#1f2a44;
+    font-weight:750;
+    line-height:1.45;
+    word-break:break-word;
+}
+.patient-row-diagnosis span{
+    color:#10233d;
+}
+.patient-row-gap{
+    height:10px;
+}
+div[data-testid="stButton"] > button{
+    min-height:36px !important;
+    padding:0.25rem 0.45rem !important;
+    border-radius:12px !important;
+    font-size:13px !important;
+    font-weight:800 !important;
+}
+@media (max-width: 1200px){
+    .patient-row-grid{
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .patient-row-tags{
+        max-width:55%;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+
 # v3.19：患者列表改为行内直接操作，压缩按钮与分隔线间距。
 st.markdown("""
 <style>
@@ -966,38 +1052,47 @@ def page_patients():
         st.info("没有匹配的患者。")
         return
 
-    st.caption(f"共 {len(rows)} 条。每一行右侧可直接进入详情、今日复诊或软删除。")
-
-    header_cols = st.columns([1.0, 1.0, 0.55, 0.55, 1.15, 1.0, 1.0, 0.75, 0.8, 1.55, 1.55, 0.72, 0.72, 0.72])
-    headers = ["编号","姓名","性别","年龄","手机号","初诊日期","最近复诊","体重","体重指数","主要诊断","标签","详情","复诊","删除"]
-    for col, h in zip(header_cols, headers):
-        col.markdown(f"**{h}**")
+    st.caption(f"共 {len(rows)} 条。点击右侧按钮可直接进入详情、今日复诊或软删除。")
 
     for r in rows:
         pid = r["patient_id"]
-        row_cols = st.columns([1.0, 1.0, 0.55, 0.55, 1.15, 1.0, 1.0, 0.75, 0.8, 1.55, 1.55, 0.72, 0.72, 0.72])
-        row_cols[0].write(r.get("编号") or "—")
-        row_cols[1].write(r.get("姓名") or "—")
-        row_cols[2].write(r.get("性别") or "—")
-        row_cols[3].write(r.get("年龄") or "—")
-        row_cols[4].write(r.get("手机号") or "—")
-        row_cols[5].write(r.get("初诊日期") or "—")
-        row_cols[6].write(r.get("最近复诊") or "—")
-        row_cols[7].write(fmt(r.get("体重")))
-        row_cols[8].write(fmt(r.get("体重指数")))
-        row_cols[9].write(r.get("主要诊断") or "—")
-        row_cols[10].write(r.get("标签") or "—")
-
-        if row_cols[11].button("详情", use_container_width=True, key=f"manage_row_detail_{pid}"):
-            open_patient_detail(pid, origin="manage")
-        if row_cols[12].button("复诊", use_container_width=True, key=f"manage_row_visit_{pid}"):
-            open_patient_detail(pid, quick_action="visit", origin="manage")
-        if row_cols[13].button("删除", use_container_width=True, key=f"manage_row_delete_{pid}"):
-            soft_delete_patient(pid)
-            st.success("已将该患者标记为删除。")
-            st.rerun()
-
-        st.divider()
+        with st.container():
+            left, action = st.columns([0.82, 0.18], gap="medium")
+            with left:
+                st.markdown(
+                    f"""
+                    <div class="patient-row-card">
+                        <div class="patient-row-top">
+                            <div>
+                                <span class="patient-row-name">{r.get("姓名") or "—"}</span>
+                                <span class="patient-row-code">{r.get("编号") or "—"}</span>
+                            </div>
+                            <div class="patient-row-tags">{r.get("标签") or "无标签"}</div>
+                        </div>
+                        <div class="patient-row-grid">
+                            <div><b>性别/年龄</b><span>{r.get("性别") or "—"}｜{r.get("年龄") or "—"}岁</span></div>
+                            <div><b>手机号</b><span>{r.get("手机号") or "—"}</span></div>
+                            <div><b>初诊日期</b><span>{r.get("初诊日期") or "—"}</span></div>
+                            <div><b>最近复诊</b><span>{r.get("最近复诊") or "—"}</span></div>
+                            <div><b>体重</b><span>{fmt(r.get("体重"))} 千克</span></div>
+                            <div><b>体重指数</b><span>{fmt(r.get("体重指数"))}</span></div>
+                            <div class="patient-row-diagnosis"><b>主要诊断</b><span>{r.get("主要诊断") or "—"}</span></div>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            with action:
+                a1, a2, a3 = st.columns(3, gap="small")
+                if a1.button("详情", use_container_width=True, key=f"manage_row_detail_{pid}"):
+                    open_patient_detail(pid, origin="manage")
+                if a2.button("复诊", use_container_width=True, key=f"manage_row_visit_{pid}"):
+                    open_patient_detail(pid, quick_action="visit", origin="manage")
+                if a3.button("删除", use_container_width=True, key=f"manage_row_delete_{pid}"):
+                    soft_delete_patient(pid)
+                    st.success("已将该患者标记为删除。")
+                    st.rerun()
+        st.markdown("<div class='patient-row-gap'></div>", unsafe_allow_html=True)
 
 
 
